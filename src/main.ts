@@ -1,4 +1,18 @@
 import './style.css'
+import { registerSW } from 'virtual:pwa-register'
+
+// Migración a Workbox (patrón de la Sesión 34): el SW lo genera
+// vite-plugin-pwa en cada build; el registro usa el módulo virtual del plugin
+// en lugar del sw.js manual de las guías 17-21.
+registerSW({
+  immediate: true,
+  onRegisteredSW(swUrl, registration) {
+    console.log('SW de Workbox registrado:', swUrl, registration)
+  },
+  onRegisterError(error) {
+    console.error('Error al registrar el SW de Workbox:', error)
+  },
+})
 
 const icon = (name: string) => {
   const paths: Record<string, string> = {

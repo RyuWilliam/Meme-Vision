@@ -1,0 +1,14 @@
+Entradas de precache generadas por Workbox (dist/sw.js)
+================================================================
+manifest.json                                  revision: 4c0b35935da8d53d80986c30327d9981
+index.html                                     revision: 7034923128cea62753568acebf3e1a7a
+assets/workbox-window.prod.es5-Bd17z0YL.js     revision: null (ya tiene hash en el nombre)
+assets/meme-vision-screenshot-wide.png         revision: null (sin revision)
+assets/meme-vision-screenshot-mobile.png       revision: null (sin revision)
+assets/meme-vision-icon-maskable.png           revision: null (sin revision)
+assets/meme-vision-icon-512.png                revision: null (sin revision)
+assets/meme-vision-icon-192.png                revision: null (sin revision)
+assets/index-LIwZhjpp.js                       revision: null (ya tiene hash en el nombre)
+assets/index-CGdUKCkc.css                      revision: null (ya tiene hash en el nombre)
+
+Total: 10 entradas
