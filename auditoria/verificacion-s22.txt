@@ -1,0 +1,31 @@
+Verificación real de la Sesión 22 — IndexedDB + Web Crypto en MemeVision
+=========================================================================
+
+Hecho desde la app corriendo en http://localhost:5173 (lectura directa de la base).
+
+Base de datos:
+  nombre:  memevision-db
+  versión: 2  (migración v1 → v2 con el patrón de if (version < N))
+  stores:  creaciones, config
+
+Registro guardado (tal como está en IndexedDB):
+  nombre:        "Meme del reto diario"
+  desafio:       "Reto diario"        <- plano, con índice porDesafio
+  notaCifrada:   ArrayBuffer (50 bytes)
+                 primeros bytes: 170 101 47 135 236 246 195 150 44 204   <- ilegibles
+  notaIv:        Uint8Array (12 bytes)
+  ¿el texto de la nota aparece en el registro?  NO
+
+Cifrado:
+  - Clave derivada de la contraseña con PBKDF2 (100 000 iteraciones, SHA-256)
+    + sal aleatoria guardada en el store config.
+  - AES-GCM de 256 bits para la nota, con IV aleatorio por registro.
+
+Prueba de reproducibilidad (lo que pide la guía):
+  - Se recargó la página (la clave se pierde de la memoria).
+  - Se ingresó la MISMA contraseña → la clave se re-derivó con la sal guardada
+    → la nota se descifró correctamente:
+        "nota privada de prueba para la S22"
+
+Capturas: evidencias/sesion-22-creaciones-cifrado.png
+          evidencias/sesion-22-nota-descifrada.png
