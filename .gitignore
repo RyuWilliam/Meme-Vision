@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Evidencia de auditoría y utilidades locales: se quedan en disco, no se suben
+auditoria/
+commit.bat
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

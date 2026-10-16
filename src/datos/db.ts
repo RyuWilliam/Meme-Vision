@@ -4,6 +4,13 @@
 
 import { cifrarTexto, descifrarTexto } from './cripto.ts'
 
+export interface Ubicacion {
+  lat: number
+  lon: number
+  precision: number // metros (coords.accuracy)
+  momento: string // ISO
+}
+
 export interface Creacion {
   id: string
   nombre: string
@@ -11,6 +18,11 @@ export interface Creacion {
   fecha: string
   notaCifrada: ArrayBuffer | null
   notaIv: Uint8Array | null
+  // Adjuntos de la Sesión 24: sin índice, así que NO cambian el esquema ni la
+  // versión de la base (IndexedDB guarda objetos con la forma que tengan).
+  foto?: Blob | null
+  ubicacion?: Ubicacion | null
+  video?: Blob | null // clip grabado con MediaRecorder (modo Vídeo)
 }
 
 const NOMBRE_DB = 'memevision-db'
@@ -143,7 +155,15 @@ export function obtenerConfig<T>(db: IDBDatabase, clave: string): Promise<T | un
 export async function guardarCreacionConNota(
   db: IDBDatabase,
   clave: CryptoKey,
-  creacion: { id: string; nombre: string; desafio: string; fecha: string; notaPrivada: string }
+  creacion: {
+    id: string
+    nombre: string
+    desafio: string
+    fecha: string
+    notaPrivada: string
+    foto?: Blob | null
+    ubicacion?: Ubicacion | null
+  }
 ): Promise<IDBValidKey> {
   const { cifrado, iv } = await cifrarTexto(clave, creacion.notaPrivada)
   return guardarCreacion(db, {
@@ -153,6 +173,8 @@ export async function guardarCreacionConNota(
     fecha: creacion.fecha,
     notaCifrada: cifrado, // cifrado: solo se lee de a uno
     notaIv: iv,
+    foto: creacion.foto ?? null,
+    ubicacion: creacion.ubicacion ?? null,
   })
 }
 
