@@ -98,6 +98,61 @@ export function obtenerUbicacion({ altaPrecision = false, timeoutMs = 10000 } = 
   })
 }
 
+/** ¿El navegador puede grabar con MediaRecorder? */
+export function grabacionDisponible(): boolean {
+  return typeof MediaRecorder !== 'undefined'
+}
+
+/** Primer contenedor que el navegador soporta para grabar (webm con opus; mp4 en iOS). */
+export function tipoGrabacionSoportado(): string | null {
+  if (!grabacionDisponible()) return null
+  const candidatos = [
+    'video/webm;codecs=vp9,opus',
+    'video/webm;codecs=vp8,opus',
+    'video/webm',
+    'video/mp4',
+  ]
+  return candidatos.find(tipo => MediaRecorder.isTypeSupported(tipo)) ?? null
+}
+
+/** Grabadora de un clip de vídeo+audio sobre un stream en vivo. */
+export function crearGrabadora(stream: MediaStream): {
+  iniciar(): void
+  detener(): Promise<Blob>
+  estaGrabando(): boolean
+  destruir(): void
+} {
+  const tipo = tipoGrabacionSoportado()
+  const trozos: Blob[] = []
+  const grabadora = new MediaRecorder(stream, tipo ? { mimeType: tipo } : undefined)
+  grabadora.ondataavailable = evento => {
+    if (evento.data.size > 0) trozos.push(evento.data)
+  }
+  return {
+    iniciar() {
+      trozos.length = 0
+      grabadora.start()
+    },
+    detener() {
+      return new Promise<Blob>(resolve => {
+        grabadora.addEventListener(
+          'stop',
+          () => resolve(new Blob(trozos, { type: grabadora.mimeType || tipo || 'video/webm' })),
+          { once: true }
+        )
+        grabadora.stop()
+      })
+    },
+    estaGrabando() {
+      return grabadora.state === 'recording'
+    },
+    destruir() {
+      if (grabadora.state !== 'inactive') grabadora.stop()
+      grabadora.ondataavailable = null
+    },
+  }
+}
+
 /** Traduce los errores de getUserMedia a un mensaje para el usuario. */
 export function describirErrorCamara(err: unknown): string {
   switch ((err as { name?: string })?.name) {

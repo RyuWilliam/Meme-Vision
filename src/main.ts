@@ -23,6 +23,8 @@ import {
   obtenerUbicacion,
   describirErrorCamara,
   describirErrorUbicacion,
+  grabacionDisponible,
+  crearGrabadora,
 } from './dispositivo.ts'
 
 // Migración a Workbox (patrón de la Sesión 34): el SW lo genera
@@ -119,6 +121,10 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
     <h2 id="camara-titulo">Cámara en vivo</h2>
     <button type="button" id="btn-cerrar-camara" class="ghost-button">Cerrar ✕</button>
   </div>
+  <div class="modo-tabs" id="modo-tabs">
+    <button type="button" id="tab-foto" class="modo-tab activo">${icon('camera')} Foto</button>
+    <button type="button" id="tab-video" class="modo-tab">🎥 Vídeo</button>
+  </div>
   <div class="camara-marco">
     <video id="video-camara" autoplay playsinline muted></video>
   </div>
@@ -126,11 +132,15 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <div id="nivel-audio" class="nivel-audio oculta"><span></span></div>
   <div class="camara-controles">
     <button type="button" id="btn-capturar" class="primary-button">${icon('camera')} Capturar</button>
-    <button type="button" id="btn-audio" class="secondary-button">🎤 Audio en vivo</button>
+    <div id="controles-video" class="controles-video oculta">
+      <button type="button" id="btn-grabar" class="primary-button">● Grabar</button>
+      <span id="rec-indicador" class="rec-indicador oculta"><i></i><span id="rec-tiempo">00:00</span></span>
+    </div>
     <button type="button" id="btn-ubicacion-camara" class="secondary-button">📍 Ubicación</button>
   </div>
   <div id="camara-preview" class="camara-preview oculta">
     <img id="preview-img" alt="Foto capturada" />
+    <video id="preview-video" class="oculta" controls playsinline></video>
     <div id="camara-preview-datos" class="camara-preview-datos">
       <input type="text" id="camara-nombre" placeholder="Nombre de la creación..." />
       <select id="camara-desafio" aria-label="Desafío">
@@ -142,6 +152,14 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       <button type="button" id="btn-guardar-creacion" class="primary-button">Guardar creación</button>
     </div>
   </div>
+</dialog>
+
+<dialog id="dlg-ver-video" class="dlg-ver-video">
+  <div class="camara-cab">
+    <h2 id="ver-video-titulo">Vídeo guardado</h2>
+    <button type="button" id="btn-cerrar-ver-video" class="ghost-button">Cerrar ✕</button>
+  </div>
+  <video id="video-repro" controls playsinline></video>
 </dialog>
 `
 
@@ -185,29 +203,45 @@ const videoCamaraEl = document.querySelector<HTMLVideoElement>('#video-camara')!
 const camaraEstadoEl = document.querySelector<HTMLParagraphElement>('#camara-estado')!
 const btnCerrarCamaraEl = document.querySelector<HTMLButtonElement>('#btn-cerrar-camara')!
 const btnCapturarEl = document.querySelector<HTMLButtonElement>('#btn-capturar')!
-const btnAudioEl = document.querySelector<HTMLButtonElement>('#btn-audio')!
 const btnUbicacionCamaraEl = document.querySelector<HTMLButtonElement>('#btn-ubicacion-camara')!
 const nivelAudioEl = document.querySelector<HTMLDivElement>('#nivel-audio')!
 const nivelAudioBarraEl = document.querySelector<HTMLSpanElement>('#nivel-audio span')!
+const modoTabsEl = document.querySelector<HTMLDivElement>('#modo-tabs')!
+const tabFotoEl = document.querySelector<HTMLButtonElement>('#tab-foto')!
+const tabVideoEl = document.querySelector<HTMLButtonElement>('#tab-video')!
+const controlesVideoEl = document.querySelector<HTMLDivElement>('#controles-video')!
+const btnGrabarEl = document.querySelector<HTMLButtonElement>('#btn-grabar')!
+const recIndicadorEl = document.querySelector<HTMLSpanElement>('#rec-indicador')!
+const recTiempoEl = document.querySelector<HTMLSpanElement>('#rec-tiempo')!
 const camaraPreviewEl = document.querySelector<HTMLDivElement>('#camara-preview')!
 const camaraPreviewDatosEl = document.querySelector<HTMLDivElement>('#camara-preview-datos')!
 const previewImgEl = document.querySelector<HTMLImageElement>('#preview-img')!
+const previewVideoEl = document.querySelector<HTMLVideoElement>('#preview-video')!
 const previewUbicacionEl = document.querySelector<HTMLSpanElement>('#preview-ubicacion')!
 const camaraNombreEl = document.querySelector<HTMLInputElement>('#camara-nombre')!
 const camaraDesafioEl = document.querySelector<HTMLSelectElement>('#camara-desafio')!
 const btnGuardarCreacionEl = document.querySelector<HTMLButtonElement>('#btn-guardar-creacion')!
 
+const dlgVerVideoEl = document.querySelector<HTMLDialogElement>('#dlg-ver-video')!
+const videoReproEl = document.querySelector<HTMLVideoElement>('#video-repro')!
+const btnCerrarVerVideoEl = document.querySelector<HTMLButtonElement>('#btn-cerrar-ver-video')!
+
 let streamActual: MediaStream | null = null
 let medidor: { leer(): number; cerrar(): void } | null = null
 let animacionNivel = 0
-let audioActivo = false
-let modoCamara: 'adjuntar' | 'crear' = 'crear'
+let tipoMedio: 'foto' | 'video' = 'foto' // pestaña activa: Foto o Vídeo
+let modoEntrada: 'adjuntar' | 'crear' = 'crear'
+let grabadora: { iniciar(): void; detener(): Promise<Blob>; estaGrabando(): boolean; destruir(): void } | null = null
+let grabando = false
+let temporizadorRec = 0
+let segundosRec = 0
 let fotoPendiente: Blob | null = null // adjunto del formulario "Mis creaciones"
 let ubicacionPendiente: Ubicacion | null = null
-let fotoCamara: Blob | null = null // captura de la vista "Cámara en vivo"
+let capturaCamara: Blob | null = null // foto o vídeo capturado en la vista "Cámara en vivo"
 let ubicacionCamara: Ubicacion | null = null
 let adjuntoFotoUrl: string | null = null // object URL de la miniatura del formulario
 let previewUrl: string | null = null // object URL de la miniatura del diálogo
+let urlVideoRepro: string | null = null // object URL del visor de vídeo
 let urlsActivas: string[] = [] // object URLs de las miniaturas de la lista
 
 const pintarCreaciones = () => {
@@ -227,7 +261,17 @@ const pintarCreaciones = () => {
     const li = document.createElement('li')
     li.className = 'creacion'
 
-    if (creacion.foto) {
+    if (creacion.video) {
+      const url = URL.createObjectURL(creacion.video)
+      urlsActivas.push(url)
+      const miniatura = document.createElement('video')
+      miniatura.className = 'miniatura'
+      miniatura.src = url
+      miniatura.muted = true
+      miniatura.playsInline = true
+      miniatura.preload = 'metadata'
+      li.append(miniatura)
+    } else if (creacion.foto) {
       const url = URL.createObjectURL(creacion.foto)
       urlsActivas.push(url)
       const miniatura = document.createElement('img')
@@ -257,6 +301,15 @@ const pintarCreaciones = () => {
 
     const notaEl = document.createElement('p')
     notaEl.className = 'creacion-nota oculta'
+
+    if (creacion.video) {
+      const verVideo = document.createElement('button')
+      verVideo.type = 'button'
+      verVideo.className = 'ghost-button'
+      verVideo.textContent = '▶ Ver'
+      verVideo.addEventListener('click', () => abrirVisorVideo(creacion))
+      acciones.append(verVideo)
+    }
 
     if (creacion.notaCifrada) {
       const verNota = document.createElement('button')
@@ -415,31 +468,114 @@ async function iniciarStream() {
     return
   }
   try {
-    streamActual = audioActivo ? await abrirFlujoConAudio() : await abrirCamara()
+    streamActual = tipoMedio === 'video' ? await abrirFlujoConAudio() : await abrirCamara()
     videoCamaraEl.srcObject = streamActual
     setEstadoCamara('')
-    if (audioActivo) iniciarMedidor()
+    if (tipoMedio === 'video' && streamActual.getAudioTracks().length > 0) iniciarMedidor()
+    else detenerMedidor()
   } catch (err) {
     setEstadoCamara(describirErrorCamara(err))
   }
 }
 
-/** Apaga la cámara por completo: medidor, pistas y fuente del video. */
+/** Apaga la cámara por completo: grabación, medidor, pistas y fuente del video. */
 function detenerCamara() {
+  detenerGrabacion()
   detenerMedidor()
   detenerFlujo(streamActual)
   streamActual = null
   videoCamaraEl.srcObject = null
 }
 
+/** Muestra los controles que corresponden al medio activo (Foto / Vídeo). */
+function aplicarModo(tipo: 'foto' | 'video') {
+  tipoMedio = tipo
+  tabFotoEl.classList.toggle('activo', tipo === 'foto')
+  tabVideoEl.classList.toggle('activo', tipo === 'video')
+  btnCapturarEl.classList.toggle('oculta', tipo === 'video')
+  controlesVideoEl.classList.toggle('oculta', tipo === 'foto')
+  if (tipo === 'foto') nivelAudioEl.classList.add('oculta')
+}
+
+/** Cambia de Foto a Vídeo (y al revés) reabriendo el stream con el audio correcto. */
+async function cambiarMedio(tipo: 'foto' | 'video') {
+  if (grabando || tipo === tipoMedio) return
+  aplicarModo(tipo)
+  camaraPreviewEl.classList.add('oculta')
+  detenerMedidor()
+  detenerFlujo(streamActual)
+  streamActual = null
+  await iniciarStream()
+  if (tipo === 'video') {
+    setEstadoCamara(
+      grabacionDisponible()
+        ? 'Listo para grabar. Pulsa ● Grabar.'
+        : 'Este navegador no puede grabar vídeo (sin MediaRecorder). Usa el modo Foto.'
+    )
+  }
+}
+
+function pintaTiempoRec() {
+  const mm = String(Math.floor(segundosRec / 60)).padStart(2, '0')
+  const ss = String(segundosRec % 60).padStart(2, '0')
+  recTiempoEl.textContent = `${mm}:${ss}`
+}
+
+function iniciarGrabacion() {
+  if (!streamActual || !grabacionDisponible()) return
+  grabadora = crearGrabadora(streamActual)
+  grabadora.iniciar()
+  grabando = true
+  segundosRec = 0
+  pintaTiempoRec()
+  recIndicadorEl.classList.remove('oculta')
+  btnGrabarEl.textContent = '■ Detener'
+  temporizadorRec = window.setInterval(() => {
+    segundosRec++
+    pintaTiempoRec()
+  }, 1000)
+}
+
+function detenerGrabacion() {
+  clearInterval(temporizadorRec)
+  temporizadorRec = 0
+  grabando = false
+  recIndicadorEl.classList.add('oculta')
+  btnGrabarEl.textContent = '● Grabar'
+  grabadora?.destruir()
+  grabadora = null
+}
+
+async function finalizarGrabacion() {
+  if (!grabadora) return
+  const clip = await grabadora.detener()
+  detenerGrabacion()
+  if (clip.size === 0) {
+    setEstadoCamara('La grabación quedó vacía. Intenta de nuevo.')
+    return
+  }
+  if (previewUrl) URL.revokeObjectURL(previewUrl)
+  previewUrl = URL.createObjectURL(clip)
+  previewVideoEl.src = previewUrl
+  previewImgEl.classList.add('oculta')
+  previewVideoEl.classList.remove('oculta')
+  capturaCamara = clip
+  camaraPreviewEl.classList.remove('oculta')
+  setEstadoCamara('Clip grabado. Ponle nombre y guárdalo.')
+}
+
 async function abrirCamaraVista(modo: 'adjuntar' | 'crear') {
-  modoCamara = modo
+  modoEntrada = modo
   camaraTituloEl.textContent = modo === 'adjuntar' ? 'Tomar foto para la creación' : 'Cámara en vivo'
   camaraPreviewDatosEl.classList.toggle('oculta', modo !== 'crear')
+  modoTabsEl.classList.toggle('oculta', modo === 'adjuntar') // al adjuntar solo aplica Foto
   camaraPreviewEl.classList.add('oculta')
+  previewImgEl.classList.remove('oculta')
+  previewVideoEl.classList.add('oculta')
   camaraNombreEl.value = ''
-  audioActivo = false
-  btnAudioEl.textContent = '🎤 Audio en vivo'
+  capturaCamara = null
+  ubicacionCamara = null
+  aplicarModo(modo === 'adjuntar' ? 'foto' : tipoMedio)
   setEstadoCamara('')
 
   // El permiso se consulta SIN aviso; la cámara se pide solo tras el clic en "Continuar".
@@ -451,9 +587,11 @@ async function abrirCamaraVista(modo: 'adjuntar' | 'crear') {
     btnPermisoContinuarEl.classList.add('oculta')
     btnPermisoCancelarEl.textContent = 'Entendido'
   } else {
-    permisoTituloEl.textContent = 'Usaremos tu cámara solo para la foto'
-    permisoTextoEl.textContent =
-      'La foto y la ubicación se quedan en tu dispositivo (IndexedDB); no se envían a ningún servidor.'
+    const esVideo = tipoMedio === 'video'
+    permisoTituloEl.textContent = esVideo ? 'Usaremos tu cámara y tu micrófono' : 'Usaremos tu cámara solo para la foto'
+    permisoTextoEl.textContent = esVideo
+      ? 'El clip se queda en tu dispositivo (IndexedDB); no se envía a ningún servidor.'
+      : 'La foto y la ubicación se quedan en tu dispositivo (IndexedDB); no se envían a ningún servidor.'
     btnPermisoContinuarEl.classList.remove('oculta')
     btnPermisoCancelarEl.textContent = 'Ahora no'
   }
@@ -470,22 +608,32 @@ btnPermisoContinuarEl.addEventListener('click', async () => {
   dlgPermisoEl.close()
   if (!dlgCamaraEl.open) dlgCamaraEl.showModal()
   await iniciarStream()
+  if (tipoMedio === 'video') {
+    setEstadoCamara(
+      grabacionDisponible()
+        ? 'Listo para grabar. Pulsa ● Grabar.'
+        : 'Este navegador no puede grabar vídeo (sin MediaRecorder). Usa el modo Foto.'
+    )
+  }
 })
 btnPermisoCancelarEl.addEventListener('click', () => dlgPermisoEl.close())
 btnCerrarCamaraEl.addEventListener('click', () => dlgCamaraEl.close())
 
+tabFotoEl.addEventListener('click', () => void cambiarMedio('foto'))
+tabVideoEl.addEventListener('click', () => void cambiarMedio('video'))
+
 // Al cerrar el diálogo —incluido con la tecla Esc— el hardware se libera siempre.
 dlgCamaraEl.addEventListener('close', () => {
   detenerCamara()
-  audioActivo = false
-  btnAudioEl.textContent = '🎤 Audio en vivo'
   camaraPreviewEl.classList.add('oculta')
   previewUbicacionEl.classList.add('oculta')
+  previewVideoEl.classList.add('oculta')
+  previewImgEl.classList.remove('oculta')
   if (previewUrl) {
     URL.revokeObjectURL(previewUrl)
     previewUrl = null
   }
-  fotoCamara = null
+  capturaCamara = null
   ubicacionCamara = null
   setEstadoCamara('')
 })
@@ -494,7 +642,7 @@ btnCapturarEl.addEventListener('click', async () => {
   if (!streamActual) return
   try {
     const blob = await capturarFoto(videoCamaraEl)
-    if (modoCamara === 'adjuntar') {
+    if (modoEntrada === 'adjuntar') {
       fotoPendiente = blob
       pintaAdjuntosFormulario()
       adjuntosEstadoEl.textContent = 'Foto adjunta. Pulsa Guardar para crear la creación.'
@@ -504,7 +652,9 @@ btnCapturarEl.addEventListener('click', async () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl)
     previewUrl = URL.createObjectURL(blob)
     previewImgEl.src = previewUrl
-    fotoCamara = blob
+    previewVideoEl.classList.add('oculta')
+    previewImgEl.classList.remove('oculta')
+    capturaCamara = blob
     camaraPreviewEl.classList.remove('oculta')
     setEstadoCamara('Foto capturada. Ponle nombre y guárdala.')
   } catch (err) {
@@ -512,19 +662,16 @@ btnCapturarEl.addEventListener('click', async () => {
   }
 })
 
-btnAudioEl.addEventListener('click', async () => {
-  audioActivo = !audioActivo
-  btnAudioEl.textContent = audioActivo ? '🎤 Audio: ACTIVO' : '🎤 Audio en vivo'
-  detenerMedidor()
-  detenerFlujo(streamActual)
-  streamActual = null
-  await iniciarStream()
+btnGrabarEl.addEventListener('click', async () => {
+  if (grabando) await finalizarGrabacion()
+  else if (!grabacionDisponible()) setEstadoCamara('Este navegador no puede grabar vídeo (sin MediaRecorder).')
+  else iniciarGrabacion()
 })
 
 btnUbicacionCamaraEl.addEventListener('click', async () => {
   try {
     const ubic = await obtenerUbicacion()
-    if (modoCamara === 'adjuntar') {
+    if (modoEntrada === 'adjuntar') {
       ubicacionPendiente = ubic
       pintaAdjuntosFormulario()
       adjuntosEstadoEl.textContent = `Ubicación adjunta: ${ubic.lat.toFixed(4)}, ${ubic.lon.toFixed(4)} (±${ubic.precision} m).`
@@ -540,8 +687,8 @@ btnUbicacionCamaraEl.addEventListener('click', async () => {
 })
 
 btnGuardarCreacionEl.addEventListener('click', async () => {
-  if (!fotoCamara) {
-    setEstadoCamara('Primero captura una foto.')
+  if (!capturaCamara) {
+    setEstadoCamara(tipoMedio === 'video' ? 'Primero graba un clip.' : 'Primero captura una foto.')
     return
   }
   const nombre = camaraNombreEl.value.trim()
@@ -550,6 +697,7 @@ btnGuardarCreacionEl.addEventListener('click', async () => {
     camaraNombreEl.focus()
     return
   }
+  const esVideo = tipoMedio === 'video'
   await guardarCreacion(db, {
     id: crypto.randomUUID(),
     nombre,
@@ -557,12 +705,31 @@ btnGuardarCreacionEl.addEventListener('click', async () => {
     fecha: new Date().toISOString(),
     notaCifrada: null,
     notaIv: null,
-    foto: fotoCamara,
+    foto: esVideo ? null : capturaCamara,
     ubicacion: ubicacionCamara,
+    video: esVideo ? capturaCamara : null,
   })
   camaraNombreEl.value = ''
   dlgCamaraEl.close()
   await refrescar()
+})
+
+/** Reproductor del clip guardado (el object URL se libera al cerrar). */
+function abrirVisorVideo(creacion: Creacion) {
+  if (!creacion.video) return
+  if (urlVideoRepro) URL.revokeObjectURL(urlVideoRepro)
+  urlVideoRepro = URL.createObjectURL(creacion.video)
+  videoReproEl.src = urlVideoRepro
+  dlgVerVideoEl.showModal()
+}
+btnCerrarVerVideoEl.addEventListener('click', () => dlgVerVideoEl.close())
+dlgVerVideoEl.addEventListener('close', () => {
+  videoReproEl.pause()
+  videoReproEl.removeAttribute('src')
+  if (urlVideoRepro) {
+    URL.revokeObjectURL(urlVideoRepro)
+    urlVideoRepro = null
+  }
 })
 
 btnFotoCreacionEl.addEventListener('click', () => void abrirCamaraVista('adjuntar'))

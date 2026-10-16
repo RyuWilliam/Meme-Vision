@@ -22,6 +22,7 @@ export interface Creacion {
   // versión de la base (IndexedDB guarda objetos con la forma que tengan).
   foto?: Blob | null
   ubicacion?: Ubicacion | null
+  video?: Blob | null // clip grabado con MediaRecorder (modo Vídeo)
 }
 
 const NOMBRE_DB = 'memevision-db'

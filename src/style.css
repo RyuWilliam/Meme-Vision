@@ -122,3 +122,18 @@ h2 { margin-bottom: 0; font-size: 23px; line-height: 1.2; }
 .camara-preview-datos { flex: 1; display: grid; gap: 8px; }
 .camara-preview-datos input, .camara-preview-datos select { padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; font: inherit; font-size: 13px; }
 .nivel-audio.oculta, .camara-preview.oculta, .camara-preview-datos.oculta, .chip-ubicacion.oculta, .primary-button.oculta { display: none; }
+
+/* Sesión 24 — modos de la cámara: Foto y Vídeo */
+.modo-tabs { display: inline-flex; gap: 4px; margin-bottom: 12px; padding: 4px; border-radius: 10px; background: #f1f2ec; }
+.modo-tab { display: inline-flex; align-items: center; gap: 7px; border: 0; border-radius: 7px; padding: 8px 14px; color: #7c827c; background: transparent; font-size: 12px; font-weight: 700; }
+.modo-tab.activo { color: #222d2c; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .08); }
+.modo-tab .ui-icon { width: 15px; height: 15px; }
+.controles-video { display: inline-flex; align-items: center; gap: 10px; }
+.rec-indicador { display: inline-flex; align-items: center; gap: 7px; color: #b4553f; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.rec-indicador i { width: 9px; height: 9px; border-radius: 50%; background: #e05a3f; animation: rec-pulso 1s ease-in-out infinite; }
+@keyframes rec-pulso { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+#preview-video { width: 180px; border-radius: 10px; border: 1px solid var(--line); background: #0b1220; }
+.dlg-ver-video { width: min(94vw, 620px); border: 0; border-radius: 16px; padding: 20px 22px 22px; color: var(--ink); background: #fff; }
+.dlg-ver-video::backdrop { background: rgba(20, 25, 24, .58); }
+#video-repro { display: block; width: 100%; border-radius: 12px; background: #0b1220; }
+.modo-tabs.oculta, .controles-video.oculta, .rec-indicador.oculta, #preview-video.oculta { display: none; }
