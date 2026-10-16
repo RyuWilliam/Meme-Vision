@@ -97,3 +97,28 @@ h2 { margin-bottom: 0; font-size: 23px; line-height: 1.2; }
 .oculta { display: none; }
 @media (max-width: 850px) { .sidebar { width: 204px; } .content { padding: 34px 30px 45px; } .hero-art { right: -4%; opacity: .5; } }
 @media (max-width: 650px) { .app-shell { display: block; } .sidebar { width: 100%; height: auto; padding: 18px 17px; border-right: 0; border-bottom: 1px solid var(--line); } .brand { padding: 0 4px; } .menu-label, .sidebar-bottom { display: none; } .main-nav { display: flex; gap: 2px; margin-top: 17px; overflow-x: auto; } .nav-item { min-height: 38px; padding: 0 10px; white-space: nowrap; font-size: 11px; } .content { padding: 28px 18px 40px; } .topbar { align-items: flex-start; } .notification { width: 38px; height: 38px; } .hero-panel { min-height: 390px; margin-top: 28px; padding: 31px 25px; align-items: flex-start; } .hero-art { right: 3%; bottom: -42px; opacity: .55; transform: scale(.82); transform-origin: bottom right; } .section-heading { margin-top: 35px; } .stat-grid { grid-template-columns: 1fr; } .stat-card { min-height: 82px; } }
+
+/* Sesión 24 — cámara, micrófono y ubicación (APIs de dispositivo) */
+.adjuntos-creacion { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 10px; }
+.adjuntos-creacion:empty { display: none; }
+.miniatura { width: 46px; height: 46px; border-radius: 8px; object-fit: cover; border: 1px solid var(--line); background: #eef0ea; }
+.chip-ubicacion { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 99px; color: #57652d; background: #eef3da; font-size: 10px; font-weight: 600; }
+.dlg-aviso { width: min(92vw, 430px); border: 0; border-radius: 14px; padding: 26px 28px; color: var(--ink); background: #fff; }
+.dlg-aviso::backdrop, .dlg-camara::backdrop { background: rgba(20, 25, 24, .58); }
+.dlg-aviso h3 { margin: 0 0 10px; font-family: 'Space Grotesk', sans-serif; font-size: 18px; }
+.dlg-aviso p { margin: 0 0 18px; color: #6b7280; font-size: 13px; line-height: 1.5; }
+.dlg-acciones { display: flex; align-items: center; gap: 10px; }
+.dlg-camara { width: min(94vw, 560px); border: 0; border-radius: 16px; padding: 20px 22px 22px; color: var(--ink); background: #fff; }
+.camara-cab { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.camara-cab h2 { margin: 0; font-size: 18px; }
+.camara-marco { position: relative; border-radius: 12px; overflow: hidden; background: #0b1220; }
+#video-camara { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: #0b1220; }
+.camara-estado { min-height: 16px; margin: 10px 0 0; color: #6b7280; font-size: 12px; }
+.camara-controles { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.nivel-audio { height: 10px; margin-top: 10px; border-radius: 99px; background: #eef0ea; overflow: hidden; }
+.nivel-audio span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #d8fa72, #b9d94f); }
+.camara-preview { display: flex; gap: 14px; align-items: flex-start; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.camara-preview img { width: 120px; border-radius: 10px; border: 1px solid var(--line); }
+.camara-preview-datos { flex: 1; display: grid; gap: 8px; }
+.camara-preview-datos input, .camara-preview-datos select { padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; font: inherit; font-size: 13px; }
+.nivel-audio.oculta, .camara-preview.oculta, .camara-preview-datos.oculta, .chip-ubicacion.oculta, .primary-button.oculta { display: none; }
