@@ -161,7 +161,8 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
     <h2 id="ver-video-titulo">Vídeo guardado</h2>
     <button type="button" id="btn-cerrar-ver-video" class="ghost-button">Cerrar ✕</button>
   </div>
-  <video id="video-repro" controls playsinline></video>
+  <img id="imagen-repro" class="oculta" alt="Foto guardada" />
+  <video id="video-repro" class="oculta" controls playsinline></video>
 </dialog>
 `
 
@@ -227,6 +228,8 @@ const btnGuardarCreacionEl = document.querySelector<HTMLButtonElement>('#btn-gua
 
 const dlgVerVideoEl = document.querySelector<HTMLDialogElement>('#dlg-ver-video')!
 const videoReproEl = document.querySelector<HTMLVideoElement>('#video-repro')!
+const imagenReproEl = document.querySelector<HTMLImageElement>('#imagen-repro')!
+const verVisorTituloEl = document.querySelector<HTMLHeadingElement>('#ver-video-titulo')!
 const btnCerrarVerVideoEl = document.querySelector<HTMLButtonElement>('#btn-cerrar-ver-video')!
 
 let streamActual: MediaStream | null = null
@@ -245,7 +248,7 @@ let capturaCamara: Blob | null = null // foto o vídeo capturado en la vista "C�
 let ubicacionCamara: Ubicacion | null = null
 let adjuntoFotoUrl: string | null = null // object URL de la miniatura del formulario
 let previewUrl: string | null = null // object URL de la miniatura del diálogo
-let urlVideoRepro: string | null = null // object URL del visor de vídeo
+let urlVisor: string | null = null // object URL del visor (foto o vídeo)
 let urlsActivas: string[] = [] // object URLs de las miniaturas de la lista
 
 const pintarCreaciones = () => {
@@ -306,13 +309,13 @@ const pintarCreaciones = () => {
     const notaEl = document.createElement('p')
     notaEl.className = 'creacion-nota oculta'
 
-    if (creacion.video) {
-      const verVideo = document.createElement('button')
-      verVideo.type = 'button'
-      verVideo.className = 'ghost-button'
-      verVideo.textContent = '▶ Ver'
-      verVideo.addEventListener('click', () => abrirVisorVideo(creacion))
-      acciones.append(verVideo)
+    if (creacion.video || creacion.foto) {
+      const ver = document.createElement('button')
+      ver.type = 'button'
+      ver.className = 'ghost-button'
+      ver.textContent = creacion.video ? '▶ Ver' : 'Ver'
+      ver.addEventListener('click', () => abrirVisor(creacion))
+      acciones.append(ver)
     }
 
     if (creacion.notaCifrada) {
@@ -732,21 +735,36 @@ btnGuardarCreacionEl.addEventListener('click', async () => {
   await refrescar()
 })
 
-/** Reproductor del clip guardado (el object URL se libera al cerrar). */
-function abrirVisorVideo(creacion: Creacion) {
-  if (!creacion.video) return
-  if (urlVideoRepro) URL.revokeObjectURL(urlVideoRepro)
-  urlVideoRepro = URL.createObjectURL(creacion.video)
-  videoReproEl.src = urlVideoRepro
+/** Visor de una creación guardada: muestra la foto o reproduce el vídeo (object URL liberado al cerrar). */
+function abrirVisor(creacion: Creacion) {
+  const medio = creacion.video ?? creacion.foto
+  if (!medio) return
+  if (urlVisor) URL.revokeObjectURL(urlVisor)
+  urlVisor = URL.createObjectURL(medio)
+  const esVideo = !!creacion.video
+  verVisorTituloEl.textContent = esVideo ? 'Vídeo guardado' : 'Foto guardada'
+  if (esVideo) {
+    videoReproEl.src = urlVisor
+    videoReproEl.classList.remove('oculta')
+    imagenReproEl.classList.add('oculta')
+    imagenReproEl.removeAttribute('src')
+    void videoReproEl.play().catch(() => {})
+  } else {
+    imagenReproEl.src = urlVisor
+    imagenReproEl.classList.remove('oculta')
+    videoReproEl.classList.add('oculta')
+    videoReproEl.removeAttribute('src')
+  }
   dlgVerVideoEl.showModal()
 }
 btnCerrarVerVideoEl.addEventListener('click', () => dlgVerVideoEl.close())
 dlgVerVideoEl.addEventListener('close', () => {
   videoReproEl.pause()
   videoReproEl.removeAttribute('src')
-  if (urlVideoRepro) {
-    URL.revokeObjectURL(urlVideoRepro)
-    urlVideoRepro = null
+  imagenReproEl.removeAttribute('src')
+  if (urlVisor) {
+    URL.revokeObjectURL(urlVisor)
+    urlVisor = null
   }
 })
 

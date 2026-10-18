@@ -136,8 +136,8 @@ h2 { margin-bottom: 0; font-size: 23px; line-height: 1.2; }
 #preview-video { width: 180px; border-radius: 10px; border: 1px solid var(--line); background: #0b1220; }
 .dlg-ver-video { width: min(94vw, 620px); border: 0; border-radius: 16px; padding: 20px 22px 22px; color: var(--ink); background: #fff; }
 .dlg-ver-video::backdrop { background: rgba(20, 25, 24, .58); }
-#video-repro { display: block; width: 100%; border-radius: 12px; background: #0b1220; }
-.modo-tabs.oculta, .controles-video.oculta, .rec-indicador.oculta, #preview-video.oculta { display: none; }
+#video-repro, #imagen-repro { display: block; width: 100%; max-height: 70vh; object-fit: contain; border-radius: 12px; background: #0b1220; }
+.modo-tabs.oculta, .controles-video.oculta, .rec-indicador.oculta, #preview-video.oculta, #video-repro.oculta, #imagen-repro.oculta { display: none; }
 
 /* --- Responsive: móvil ----------------------------------------------------- */
 @media (max-width: 650px) {
@@ -152,8 +152,8 @@ h2 { margin-bottom: 0; font-size: 23px; line-height: 1.2; }
   .creacion-acciones { margin-left: auto; }
 
   /* La cámara ocupa toda la pantalla del celular */
-  .dlg-camara { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; padding: 14px 14px 18px; overflow: hidden; }
-  .dlg-camara[open] { display: flex; flex-direction: column; }
+  .dlg-camara { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; padding: 14px 14px calc(18px + env(safe-area-inset-bottom)); overflow: hidden; }
+  .dlg-camara[open] { display: flex; flex-direction: column; overscroll-behavior: contain; }
   .dlg-camara .camara-cab { margin-bottom: 8px; }
   .camara-cab h2 { font-size: 16px; }
   .modo-tabs { align-self: flex-start; margin-bottom: 10px; }
@@ -163,7 +163,13 @@ h2 { margin-bottom: 0; font-size: 23px; line-height: 1.2; }
   .camara-controles > button { width: 100%; justify-content: center; }
   .controles-video { grid-column: 1 / -1; display: flex; gap: 8px; }
   .controles-video > .primary-button { flex: 1; justify-content: center; }
-  .camara-preview { flex-direction: column; }
-  .camara-preview img, #preview-video { width: 100%; max-width: 240px; }
+  /* Al previsualizar la captura, se esconde el marco en vivo y el diálogo se puede desplazar
+     (así el formulario de nombre/desafío no se corta y el fondo no se mueve). */
+  .dlg-camara[open]:has(#camara-preview:not(.oculta)) { overflow-y: auto; }
+  .dlg-camara[open]:has(#camara-preview:not(.oculta)) .camara-marco { display: none; }
+  .dlg-camara[open]:has(#camara-preview:not(.oculta)) .camara-controles { display: none; }
+  .camara-preview { flex-direction: column; align-items: stretch; }
+  .camara-preview img, #preview-video { width: 100%; max-width: 220px; align-self: center; }
+  .camara-preview-datos input, .camara-preview-datos select { width: 100%; }
   .dlg-aviso, .dlg-ver-video { width: 92vw; padding: 22px 20px; }
 }
