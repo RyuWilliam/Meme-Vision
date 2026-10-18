@@ -25,6 +25,7 @@ import {
   describirErrorUbicacion,
   grabacionDisponible,
   crearGrabadora,
+  contarCamaras,
 } from './dispositivo.ts'
 
 // Migración a Workbox (patrón de la Sesión 34): el SW lo genera
@@ -137,6 +138,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       <span id="rec-indicador" class="rec-indicador oculta"><i></i><span id="rec-tiempo">00:00</span></span>
     </div>
     <button type="button" id="btn-ubicacion-camara" class="secondary-button">📍 Ubicación</button>
+    <button type="button" id="btn-cambiar-camara" class="secondary-button oculta">⇄ Cambiar cámara</button>
   </div>
   <div id="camara-preview" class="camara-preview oculta">
     <img id="preview-img" alt="Foto capturada" />
@@ -204,6 +206,7 @@ const camaraEstadoEl = document.querySelector<HTMLParagraphElement>('#camara-est
 const btnCerrarCamaraEl = document.querySelector<HTMLButtonElement>('#btn-cerrar-camara')!
 const btnCapturarEl = document.querySelector<HTMLButtonElement>('#btn-capturar')!
 const btnUbicacionCamaraEl = document.querySelector<HTMLButtonElement>('#btn-ubicacion-camara')!
+const btnCambiarCamaraEl = document.querySelector<HTMLButtonElement>('#btn-cambiar-camara')!
 const nivelAudioEl = document.querySelector<HTMLDivElement>('#nivel-audio')!
 const nivelAudioBarraEl = document.querySelector<HTMLSpanElement>('#nivel-audio span')!
 const modoTabsEl = document.querySelector<HTMLDivElement>('#modo-tabs')!
@@ -231,6 +234,7 @@ let medidor: { leer(): number; cerrar(): void } | null = null
 let animacionNivel = 0
 let tipoMedio: 'foto' | 'video' = 'foto' // pestaña activa: Foto o Vídeo
 let modoEntrada: 'adjuntar' | 'crear' = 'crear'
+let facingMode: 'user' | 'environment' = 'environment' // cámara trasera por defecto (frontal/trasera en móvil)
 let grabadora: { iniciar(): void; detener(): Promise<Blob>; estaGrabando(): boolean; destruir(): void } | null = null
 let grabando = false
 let temporizadorRec = 0
@@ -468,11 +472,14 @@ async function iniciarStream() {
     return
   }
   try {
-    streamActual = tipoMedio === 'video' ? await abrirFlujoConAudio() : await abrirCamara()
+    streamActual = tipoMedio === 'video' ? await abrirFlujoConAudio(facingMode) : await abrirCamara(facingMode)
     videoCamaraEl.srcObject = streamActual
+    videoCamaraEl.classList.toggle('espejo', facingMode === 'user') // la frontal se ve como espejo
     setEstadoCamara('')
     if (tipoMedio === 'video' && streamActual.getAudioTracks().length > 0) iniciarMedidor()
     else detenerMedidor()
+    // El botón de cambiar cámara solo aparece si hay más de una (típico en un celular).
+    btnCambiarCamaraEl.classList.toggle('oculta', (await contarCamaras()) < 2)
   } catch (err) {
     setEstadoCamara(describirErrorCamara(err))
   }
@@ -666,6 +673,17 @@ btnGrabarEl.addEventListener('click', async () => {
   if (grabando) await finalizarGrabacion()
   else if (!grabacionDisponible()) setEstadoCamara('Este navegador no puede grabar vídeo (sin MediaRecorder).')
   else iniciarGrabacion()
+})
+
+// Cambio frontal / trasera (móvil): reabre el stream con el otro facingMode.
+btnCambiarCamaraEl.addEventListener('click', async () => {
+  if (grabando) return
+  facingMode = facingMode === 'environment' ? 'user' : 'environment'
+  camaraPreviewEl.classList.add('oculta')
+  detenerMedidor()
+  detenerFlujo(streamActual)
+  streamActual = null
+  await iniciarStream()
 })
 
 btnUbicacionCamaraEl.addEventListener('click', async () => {

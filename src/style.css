@@ -108,11 +108,12 @@ h2 { margin-bottom: 0; font-size: 23px; line-height: 1.2; }
 .dlg-aviso h3 { margin: 0 0 10px; font-family: 'Space Grotesk', sans-serif; font-size: 18px; }
 .dlg-aviso p { margin: 0 0 18px; color: #6b7280; font-size: 13px; line-height: 1.5; }
 .dlg-acciones { display: flex; align-items: center; gap: 10px; }
-.dlg-camara { width: min(94vw, 560px); border: 0; border-radius: 16px; padding: 20px 22px 22px; color: var(--ink); background: #fff; }
+.dlg-camara { width: min(96vw, 800px); max-height: 92vh; overflow: auto; border: 0; border-radius: 18px; padding: 20px 22px 22px; color: var(--ink); background: #fff; box-shadow: 0 24px 60px rgba(20, 25, 24, .35); }
 .camara-cab { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .camara-cab h2 { margin: 0; font-size: 18px; }
-.camara-marco { position: relative; border-radius: 12px; overflow: hidden; background: #0b1220; }
-#video-camara { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: #0b1220; }
+.camara-marco { position: relative; border-radius: 14px; overflow: hidden; background: #0b1220; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .07); }
+#video-camara { display: block; width: 100%; aspect-ratio: 4 / 3; max-height: 62vh; object-fit: cover; background: #0b1220; }
+#video-camara.espejo { transform: scaleX(-1); }
 .camara-estado { min-height: 16px; margin: 10px 0 0; color: #6b7280; font-size: 12px; }
 .camara-controles { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
 .nivel-audio { height: 10px; margin-top: 10px; border-radius: 99px; background: #eef0ea; overflow: hidden; }
@@ -137,3 +138,32 @@ h2 { margin-bottom: 0; font-size: 23px; line-height: 1.2; }
 .dlg-ver-video::backdrop { background: rgba(20, 25, 24, .58); }
 #video-repro { display: block; width: 100%; border-radius: 12px; background: #0b1220; }
 .modo-tabs.oculta, .controles-video.oculta, .rec-indicador.oculta, #preview-video.oculta { display: none; }
+
+/* --- Responsive: móvil ----------------------------------------------------- */
+@media (max-width: 650px) {
+  .content { padding: 22px 16px 34px; }
+  .creaciones { padding: 20px 16px; }
+  .creaciones-head { flex-wrap: wrap; }
+  .creaciones-form { flex-direction: column; align-items: stretch; }
+  .creaciones-form input[type="text"], .creaciones-form select, .creaciones-form button { width: 100%; flex: 1 1 auto; }
+  .creaciones-seguridad { flex-direction: column; align-items: stretch; }
+  .creaciones-seguridad input, .creaciones-seguridad button { width: 100%; flex: 1 1 auto; }
+  .creacion { align-items: flex-start; }
+  .creacion-acciones { margin-left: auto; }
+
+  /* La cámara ocupa toda la pantalla del celular */
+  .dlg-camara { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; padding: 14px 14px 18px; overflow: hidden; }
+  .dlg-camara[open] { display: flex; flex-direction: column; }
+  .dlg-camara .camara-cab { margin-bottom: 8px; }
+  .camara-cab h2 { font-size: 16px; }
+  .modo-tabs { align-self: flex-start; margin-bottom: 10px; }
+  .camara-marco { flex: 1; min-height: 0; }
+  #video-camara { position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto; max-height: none; }
+  .camara-controles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .camara-controles > button { width: 100%; justify-content: center; }
+  .controles-video { grid-column: 1 / -1; display: flex; gap: 8px; }
+  .controles-video > .primary-button { flex: 1; justify-content: center; }
+  .camara-preview { flex-direction: column; }
+  .camara-preview img, #preview-video { width: 100%; max-width: 240px; }
+  .dlg-aviso, .dlg-ver-video { width: 92vw; padding: 22px 20px; }
+}
