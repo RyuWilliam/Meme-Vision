@@ -103,6 +103,17 @@ export function grabacionDisponible(): boolean {
   return typeof MediaRecorder !== 'undefined'
 }
 
+/** Cuenta las cámaras (videoinput) disponibles. Tras conceder el permiso son las reales. */
+export async function contarCamaras(): Promise<number> {
+  if (!navigator.mediaDevices?.enumerateDevices) return 0
+  try {
+    const dispositivos = await navigator.mediaDevices.enumerateDevices()
+    return dispositivos.filter(d => d.kind === 'videoinput').length
+  } catch {
+    return 0
+  }
+}
+
 /** Primer contenedor que el navegador soporta para grabar (webm con opus; mp4 en iOS). */
 export function tipoGrabacionSoportado(): string | null {
   if (!grabacionDisponible()) return null

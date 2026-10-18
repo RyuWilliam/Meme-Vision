@@ -16,6 +16,9 @@ dist-ssr
 auditoria/
 commit.bat
 
+# Configuración local de Command Code
+.commandcode/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
