@@ -15,6 +15,12 @@ export default defineConfig({
         // La lista de precaché se genera a partir de dist/ DESPUÉS del build,
         // con los nombres de archivo reales (con hash incluido).
         globPatterns: ['**/*.{html,js,css,png,json}'],
+        // Como en apps reales: el Service Worker nuevo toma el control de inmediato
+        // y reclama las pestañas abiertas. Sin esto queda "en espera" hasta cerrar
+        // TODAS las pestañas (o borrar la caché) y no se ven los cambios.
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
             // Íconos y screenshots del manifest: casi nunca cambian -> CacheFirst

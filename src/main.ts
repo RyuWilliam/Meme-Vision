@@ -35,11 +35,32 @@ registerSW({
   immediate: true,
   onRegisteredSW(swUrl, registration) {
     console.log('SW de Workbox registrado:', swUrl, registration)
+    if (!registration) return
+    // Como en apps reales: comprobar si hay versión nueva al volver a la app y cada
+    // hora, para no quedarse con el shell viejo hasta borrar la caché.
+    const revisar = () => void registration.update()
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) revisar()
+    })
+    window.setInterval(revisar, 60 * 60 * 1000)
   },
   onRegisterError(error) {
     console.error('Error al registrar el SW de Workbox:', error)
   },
 })
+
+// Con skipWaiting + clientsClaim, el SW nuevo toma el control enseguida; recargamos
+// una sola vez para servir el shell nuevo. Solo si ya había un SW controlando, para
+// no recargar en la primera visita.
+if ('serviceWorker' in navigator) {
+  const yaControlaba = !!navigator.serviceWorker.controller
+  let recargando = false
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!yaControlaba || recargando) return
+    recargando = true
+    window.location.reload()
+  })
+}
 
 const icon = (name: string) => {
   const paths: Record<string, string> = {
