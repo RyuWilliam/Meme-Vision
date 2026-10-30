@@ -38,6 +38,37 @@ export default defineConfig({
             handler: 'NetworkFirst',
             options: { cacheName: 'api-memes' },
           },
+          {
+            // El modelo entrenado puede cambiar al reentrenar: red primero y
+            // respaldo en caché si no hay conexión.
+            urlPattern: /\/modelos\/gestos_mlp\.json$/,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'modelo-gestos',
+              networkTimeoutSeconds: 3,
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // Tareas de MediaPipe (.task): se cachean la primera vez y quedan
+            // disponibles sin conexión.
+            urlPattern: /\/modelos\//,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'modelos-vision',
+              cacheableResponse: { statuses: [0, 200] },
+              expiration: { maxEntries: 12, maxAgeSeconds: 30 * 24 * 60 * 60 },
+            },
+          },
+          {
+            urlPattern: /\/wasm\//,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'wasm-vision',
+              cacheableResponse: { statuses: [0, 200] },
+              expiration: { maxEntries: 12, maxAgeSeconds: 30 * 24 * 60 * 60 },
+            },
+          },
         ],
       },
     }),

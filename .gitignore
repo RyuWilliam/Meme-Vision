@@ -29,3 +29,13 @@ commit.bat
 *.njsproj
 *.sln
 *.sw?
+
+# Núcleo Python
+nucleo/.venv/
+nucleo/**/__pycache__/
+nucleo/**/*.pyc
+nucleo/datos/crudo/*.jsonl
+nucleo/modelos/*.joblib
+
+# WASM de MediaPipe: se copia con scripts/copiar-wasm.mjs
+public/wasm/tasks-vision/

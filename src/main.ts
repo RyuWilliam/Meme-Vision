@@ -27,6 +27,7 @@ import {
   crearGrabadora,
   contarCamaras,
 } from './dispositivo.ts'
+import { montarGestos } from './vision/ui-gestos.ts'
 
 // Migración a Workbox (patrón de la Sesión 34): el SW lo genera
 // vite-plugin-pwa en cada build; el registro usa el módulo virtual del plugin
@@ -85,7 +86,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
     <nav class="main-nav" aria-label="Navegación principal">
       <a class="nav-item active" href="#">${icon('grid')} <span>Inicio</span></a>
       <a class="nav-item" href="#" id="nav-camara">${icon('camera')} <span>Cámara en vivo</span></a>
-      <a class="nav-item" href="#">${icon('face')} <span>Gestos y filtros</span></a>
+      <a class="nav-item" href="#" id="nav-gestos">${icon('face')} <span>Gestos y filtros</span></a>
       <a class="nav-item" href="#">${icon('challenge')} <span>Desafíos</span></a>
       <a class="nav-item" href="#">${icon('images')} <span>Mis creaciones</span></a>
     </nav>
@@ -184,6 +185,33 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   </div>
   <img id="imagen-repro" class="oculta" alt="Foto guardada" />
   <video id="video-repro" class="oculta" controls playsinline></video>
+</dialog>
+
+<dialog id="dlg-gestos" class="dlg-gestos">
+  <div class="camara-cab">
+    <h2>Gestos en vivo</h2>
+    <button type="button" id="btn-cerrar-gestos" class="ghost-button">Cerrar ✕</button>
+  </div>
+  <div class="gestos-layout">
+    <div class="gestos-video-wrap espejo" id="gestos-video-wrap">
+      <video id="video-gestos" autoplay playsinline muted></video>
+      <canvas id="lienzo-gestos"></canvas>
+      <span class="gestos-chip" id="gestos-motor">Motor: —</span>
+    </div>
+    <aside class="gestos-panel">
+      <div class="gestos-meme-marco">
+        <img id="meme-gestos" alt="Meme del gesto reconocido" />
+      </div>
+      <p class="gestos-etiqueta" id="gesto-etiqueta">Esperando gesto…</p>
+      <div class="gestos-confianza" aria-hidden="true"><span id="gesto-confianza"></span></div>
+      <p class="gestos-estado" id="gestos-estado">Pulsa «Activar cámara» para empezar.</p>
+      <div class="gestos-acciones">
+        <button type="button" id="btn-iniciar-gestos" class="primary-button">Activar cámara</button>
+        <button type="button" id="btn-cambiar-gestos" class="secondary-button oculta">⇄ Cambiar cámara</button>
+        <button type="button" id="btn-debug-gestos" class="secondary-button">Puntos</button>
+      </div>
+    </aside>
+  </div>
 </dialog>
 `
 
@@ -801,6 +829,18 @@ btnUbicacionCreacionEl.addEventListener('click', async () => {
 })
 
 btnActivarCifradoEl.addEventListener('click', activarCifrado)
+
+// ---------------------------------------------------------------------------
+// Núcleo de visión: gestos → memes. El motor corre en el navegador (MediaPipe
+// WASM + MLP exportado desde Python) y cae a reglas si aún no hay modelo.
+const gestos = montarGestos()
+document.querySelector<HTMLAnchorElement>('#nav-gestos')!.addEventListener(
+  'click',
+  evento => {
+    evento.preventDefault()
+    void gestos.abrir()
+  },
+)
 
 async function iniciar() {
   db = await abrirBaseDeDatos()
