@@ -29,9 +29,27 @@ def leer_jsonl(ruta: Path) -> list[dict[str, Any]]:
     return muestras
 
 
+def _muestra_util(muestra: dict[str, Any]) -> bool:
+    """Descarta frames donde el gesto no tiene la señal mínima necesaria.
+
+    Un frame de `like` sin mano no aporta nada y, peor, enseña al modelo a
+    predecir ese gesto cuando no hay mano. Para `silencio` y `mewing` también
+    hace falta el rostro.
+    """
+    etiqueta = muestra["etiqueta"]
+    if etiqueta == "ninguno":
+        return True
+    if not muestra.get("landmarks_mano"):
+        return False
+    if etiqueta in {"silencio", "mewing"} and not muestra.get("landmarks_rostro"):
+        return False
+    return True
+
+
 def cargar_datos(carpeta: Path) -> list[dict[str, Any]]:
-    """Lee todos los .jsonl de la carpeta y descarta etiquetas desconocidas."""
+    """Lee los .jsonl, descarta etiquetas raras y frames sin mano/rostro."""
     muestras: list[dict[str, Any]] = []
+    descartadas = 0
     for ruta in sorted(carpeta.glob("*.jsonl")):
         for muestra in leer_jsonl(ruta):
             etiqueta = muestra.get("etiqueta")
@@ -40,7 +58,15 @@ def cargar_datos(carpeta: Path) -> list[dict[str, Any]]:
                 continue
             muestra.setdefault("sesion", ruta.stem)
             muestra.setdefault("persona", "anonima")
+            if not _muestra_util(muestra):
+                descartadas += 1
+                continue
             muestras.append(muestra)
+    if descartadas:
+        print(
+            f"[aviso] Se descartaron {descartadas} frames sin mano (o sin rostro "
+            "para silencio/mewing). Graba de nuevo esos gestos con la mano bien visible."
+        )
     return muestras
 
 

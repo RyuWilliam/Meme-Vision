@@ -46,6 +46,11 @@ $env:PYTHONPATH = "src"
 
 - Elige un gesto con `1`–`4` o `0`; empieza a grabar automáticamente.
 - `Espacio` pausa/reanuda, `D` muestra los puntos de la cara, `Q` sale.
+- Al salir con `Q` **o al cerrar la ventana** se libera la cámara.
+- Si la mano no se detecta mientras grabas un gesto, el recolector **no guarda**
+  ese frame y muestra `MANO NO DETECTADA` en la ventana. Para `silencio` y
+  `mewing` también exige que se vea el rostro. `ninguno` sí guarda frames sin
+  mano (es la clase negativa).
 - Graba **una sesión por persona y por condiciones de luz/distancia**.
 - Recomendado: 3 sesiones (o 3 personas), 2 manos, 30/60/90 cm, dos fondos y
   dos luces, y al menos **50 muestras por gesto y sesión** (~20 s por gesto).
@@ -62,6 +67,8 @@ ignorado por Git (puede ser grande o privado).
 
 - Divide **por sesión** (`train`/`val`/`test`), nunca por frames: así se mide
   generalización a una persona o sesión nueva.
+- Descarta los frames sin mano (y sin rostro para `silencio`/`mewing`) para no
+  entrenar con muestras que el modelo no podría usar.
 - Aumenta solo el train: espejo, rotación ±8°, escala 0.9–1.1, ruido y jitter de
   blendshapes.
 - Entrena un MLP `128 → 64`, elige el umbral en validación y evalúa en test.
@@ -142,6 +149,12 @@ La implementación debe mantenerse idéntica en:
 
 - **`No module named meme_vision`** → falta `$env:PYTHONPATH = "src"`.
 - **No abre la cámara** → cierra otras apps que la usen; prueba `--camara 1`.
+- **La ventana se ve negra aunque el LED esté encendido** → casi siempre es la
+  cámara ocupada: cierra la PWA, Zoom/Teams o cualquier pestaña con la cámara y
+  finaliza los `python.exe` que hayan quedado en el Administrador de tareas.
+  Luego prueba `--backend msmf` (o `--backend dshow`) y `--camara 1`. El
+  recolector ahora comprueba que lleguen fotogramas reales y libera la cámara al
+  cerrar la ventana.
 - **Faltan modelos** → `python -m meme_vision.descargar_modelos`.
 - **Macro F1 bajo** → agrega sesiones/personas y muestras; revisa la matriz de
   confusión; el split por sesión es más exigente que uno aleatorio.
