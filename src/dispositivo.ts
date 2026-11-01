@@ -1,4 +1,4 @@
-// dispositivo.ts — APIs de dispositivo de MemeVision (Sesión 24):
+// dispositivo.ts — APIs de dispositivo de gestIA (Sesión 24):
 // cámara, micrófono y ubicación con el modelo de permisos, los errores y el
 // ciclo de vida que exige la guía. Solo funciona en HTTPS o localhost.
 

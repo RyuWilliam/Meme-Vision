@@ -1,4 +1,4 @@
-# Memes de MemeVision
+# Memes de gestIA
 
 Cada carpeta corresponde a un gesto. La app elige una imagen al azar (rotando)
 cuando el gesto se mantiene estable.

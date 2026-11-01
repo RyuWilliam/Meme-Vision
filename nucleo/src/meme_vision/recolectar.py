@@ -48,7 +48,7 @@ TECLAS = {
 }
 
 ROSTRO_DEBUG = (10, 13, 14, 152, 172, 397)
-VENTANA = "MemeVision - recoleccion de gestos"
+VENTANA = "gestIA - recoleccion de gestos"
 
 
 def _backend_camara(nombre: str) -> int:
@@ -119,7 +119,7 @@ def _categoria(categorias, indice: int = 0):
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Graba landmarks de gestos para MemeVision.")
+    parser = argparse.ArgumentParser(description="Graba landmarks de gestos para gestIA.")
     parser.add_argument("--persona", default="anonima", help="Nombre de quien graba")
     parser.add_argument("--camara", type=int, default=0, help="Índice de la cámara")
     parser.add_argument(

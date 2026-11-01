@@ -1,4 +1,4 @@
-# Evidencias — MemeVision · Guías PWA (Sesiones 17 a 22)
+# Evidencias — gestIA · Guías PWA (Sesiones 17 a 22)
 
 Capturas generadas ejecutando la app real en un servidor local (http://localhost:5173).
 Las sesiones 17-21 llevan un aviso pequeño con datos reales del navegador (Service Worker,

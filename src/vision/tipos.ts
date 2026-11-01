@@ -1,7 +1,7 @@
 import type { NormalizedLandmark } from '@mediapipe/tasks-vision'
 
 /**
- * Gestos que reconoce MemeVision.
+ * Gestos que reconoce gestIA.
  * Las etiquetas coinciden exactamente con las del entrenamiento en Python
  * (`nucleo/src/meme_vision/configuracion.py`).
  */
