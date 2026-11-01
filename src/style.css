@@ -13,11 +13,15 @@ button { cursor: pointer; }
 .brand-mark { width: 29px; height: 29px; display: grid; place-items: center; border-radius: 9px; color: #1e2524; background: var(--lime); }
 .brand-mark .ui-icon { width: 17px; height: 17px; stroke-width: 2.2; }
 .menu-label, .eyebrow { color: #a0a49d; font-size: 10px; font-weight: 700; letter-spacing: 1.3px; text-transform: uppercase; }
+.eyebrow.slogan { color: #899b38; font-size: 12px; letter-spacing: .3px; text-transform: none; }
 .menu-label { margin: 56px 12px 13px; }
 .main-nav { display: grid; gap: 5px; }
 .nav-item { display: flex; align-items: center; gap: 13px; min-height: 45px; padding: 0 13px; border-radius: 10px; color: #858b8a; font-size: 13px; font-weight: 600; text-decoration: none; transition: color .2s, background .2s; }
 .nav-item:hover, .nav-item.active { color: var(--ink); background: #eef2e7; }
 .nav-item.active .ui-icon { color: #899b38; }
+.nav-item.destacado { color: var(--ink); background: #f1f6e2; }
+.nav-item.destacado .ui-icon { color: #899b38; }
+.nav-item.destacado:hover { background: #e9f2d4; }
 .sidebar-bottom { margin-top: auto; display: grid; gap: 25px; }
 .profile { display: flex; align-items: center; gap: 10px; padding: 16px 5px 0; border-top: 1px solid var(--line); }
 .avatar { display: grid; place-items: center; width: 31px; height: 31px; border-radius: 50%; color: #57652d; background: #e2efb7; font-size: 10px; font-weight: 700; }
@@ -193,8 +197,15 @@ h2 { margin-bottom: 0; font-size: 23px; line-height: 1.2; }
 .gestos-confianza span { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--lime); transition: width .12s linear; }
 .gestos-estado { min-height: 16px; margin: 0; color: #6b7280; font-size: 11px; line-height: 1.5; }
 .gestos-acciones { display: flex; flex-wrap: wrap; gap: 8px; }
-.gestos-acciones .primary-button, .gestos-acciones .secondary-button { flex: 1 1 120px; justify-content: center; }
-#btn-debug-gestos[aria-pressed="true"] { color: #fff; background: #20252b; }
+.gestos-acciones .primary-button, .gestos-acciones .secondary-button, .gestos-acciones .switch { flex: 1 1 120px; justify-content: center; }
+.switch { position: relative; display: inline-flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 9px; color: #555; background: #fff; font-size: 12px; font-weight: 700; cursor: pointer; user-select: none; }
+.switch input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.switch-track { position: relative; flex: 0 0 auto; width: 36px; height: 20px; border-radius: 999px; background: #e3e5df; transition: background .18s; }
+.switch-track::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .2); transition: transform .18s, background .18s; }
+.switch input:checked + .switch-track { background: var(--lime); }
+.switch input:checked + .switch-track::after { transform: translateX(16px); background: #20252b; }
+.switch input:focus-visible + .switch-track { outline: 2px solid #9aa43c; outline-offset: 2px; }
+.switch-texto { line-height: 1; }
 
 @media (max-width: 760px) {
   .gestos-layout { grid-template-columns: 1fr; }

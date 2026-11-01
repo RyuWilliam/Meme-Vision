@@ -81,20 +81,20 @@ const icon = (name: string) => {
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
 <div class="app-shell">
   <aside class="sidebar">
-    <a class="brand" href="#" aria-label="Meme Vision inicio"><span class="brand-mark">${icon('spark')}</span><span>Meme<span>Vision</span></span></a>
-    <p class="menu-label">Explora MemeVision</p>
+    <a class="brand" href="#" aria-label="gestIA inicio"><span class="brand-mark">${icon('spark')}</span><span>gest<span>IA</span></span></a>
+    <p class="menu-label">Explora gestIA</p>
     <nav class="main-nav" aria-label="Navegación principal">
+      <a class="nav-item destacado" href="#" id="nav-gestos">${icon('face')} <span>Probar gestIA</span></a>
       <a class="nav-item active" href="#">${icon('grid')} <span>Inicio</span></a>
       <a class="nav-item" href="#" id="nav-camara">${icon('camera')} <span>Cámara en vivo</span></a>
-      <a class="nav-item" href="#" id="nav-gestos">${icon('face')} <span>Gestos y filtros</span></a>
       <a class="nav-item" href="#">${icon('challenge')} <span>Desafíos</span></a>
       <a class="nav-item" href="#">${icon('images')} <span>Mis creaciones</span></a>
     </nav>
     <div class="sidebar-bottom"><a class="nav-item" href="#">${icon('settings')} <span>Configuración</span></a><div class="profile"><span class="avatar">NV</span><span><strong>Nuevo usuario</strong><small>Plan gratuito</small></span><span class="more">•••</span></div></div>
   </aside>
   <main class="content">
-    <header class="topbar"><div><p class="eyebrow">Tu espacio creativo</p><h1>Convierte tus gestos en memes.</h1></div><button class="notification" aria-label="Notificaciones">${icon('spark')}<span></span></button></header>
-    <section class="hero-panel"><div class="hero-copy"><span class="pill">${icon('camera')} Visión artificial on-device</span><h2>Tu cámara. Tus gestos. Tu próximo meme.</h2><p>MemeVision reconoce tu rostro, manos y cuerpo directamente en el navegador para crear experiencias en tiempo real.</p><button class="primary-button" id="btn-abrir-camara">${icon('camera')} Abrir cámara <span>→</span></button></div><div class="hero-art" aria-hidden="true"><div class="art-ring ring-one"></div><div class="art-ring ring-two"></div><div class="art-card"><span>GESTURE</span><strong>meme<br>ready</strong><i>${icon('face')}</i></div></div></section>
+    <header class="topbar"><div><p class="eyebrow slogan">Intelligence meets gesture.</p><h1>Convierte tus gestos en memes.</h1></div><button class="notification" aria-label="Notificaciones">${icon('spark')}<span></span></button></header>
+    <section class="hero-panel"><div class="hero-copy"><span class="pill">${icon('camera')} Visión artificial on-device</span><h2>Tu cámara. Tus gestos. Tu próximo meme.</h2><p>gestIA reconoce tu rostro y tus manos directamente en el navegador para convertir tus gestos en memes en tiempo real.</p><button class="primary-button" id="btn-abrir-camara">${icon('camera')} Abrir cámara <span>→</span></button></div><div class="hero-art" aria-hidden="true"><div class="art-ring ring-one"></div><div class="art-ring ring-two"></div><div class="art-card"><span>GESTURE</span><strong>meme<br>ready</strong><i>${icon('face')}</i></div></div></section>
     <section class="section-heading"><div><p class="eyebrow">Crea a tu manera</p><h2>Elige una experiencia</h2></div><button class="ghost-button">Ver todas <span>→</span></button></section>
     <section class="stat-grid"><article class="stat-card"><span class="stat-icon blue">${icon('face')}</span><div><small>Rostro y expresiones</small><strong>Live</strong></div><span class="stat-note">Detección facial</span></article><article class="stat-card"><span class="stat-icon yellow">${icon('challenge')}</span><div><small>Desafíos activos</small><strong>03</strong></div><span class="stat-note">Para explorar</span></article><article class="stat-card"><span class="stat-icon coral">${icon('images')}</span><div><small>Mis creaciones</small><strong id="contador-creaciones">0</strong></div><span class="stat-note" id="nota-creaciones">Aún no hay datos</span></article></section>
     <section class="empty-panel"><div class="empty-icon">${icon('camera')}</div><h2>Tu cámara es el punto de partida</h2><p>Activa una experiencia y deja que tus movimientos hagan el resto.</p><button class="secondary-button">${icon('challenge')} Explorar experiencias</button></section>
@@ -208,7 +208,11 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       <div class="gestos-acciones">
         <button type="button" id="btn-iniciar-gestos" class="primary-button">Activar cámara</button>
         <button type="button" id="btn-cambiar-gestos" class="secondary-button oculta">⇄ Cambiar cámara</button>
-        <button type="button" id="btn-debug-gestos" class="secondary-button">Puntos</button>
+        <label class="switch" for="switch-puntos" title="Mostrar puntos de mano y rostro">
+          <input type="checkbox" id="switch-puntos" role="switch" aria-label="Mostrar puntos de mano y rostro" />
+          <span class="switch-track" aria-hidden="true"></span>
+          <span class="switch-texto">Puntos</span>
+        </label>
       </div>
     </aside>
   </div>
@@ -216,7 +220,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
 `
 
 // ---------------------------------------------------------------------------
-// Sesión 22 — IndexedDB + Web Crypto aplicados a MemeVision: las creaciones
+// Sesión 22 — IndexedDB + Web Crypto aplicados a gestIA: las creaciones
 // viven en IndexedDB y la nota privada se cifra con una clave derivada de la
 // contraseña del usuario (PBKDF2 + AES-GCM).
 let db: IDBDatabase
@@ -467,7 +471,7 @@ formCreacionEl.addEventListener('submit', async (evento) => {
 })
 
 // ---------------------------------------------------------------------------
-// Sesión 24 — cámara, micrófono y ubicación aplicados a MemeVision.
+// Sesión 24 — cámara, micrófono y ubicación aplicados a gestIA.
 // Un único <dialog> de cámara compartido y un solo flujo abierto a la vez.
 function setEstadoCamara(texto: string) {
   camaraEstadoEl.textContent = texto

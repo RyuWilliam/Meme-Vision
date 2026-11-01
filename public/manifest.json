@@ -1,7 +1,7 @@
 {
-  "name": "Meme Vision",
-  "short_name": "Meme Vision",
-  "description": "Experiencias interactivas que convierten tus gestos en memes, filtros, GIFs y desafíos en tiempo real.",
+  "name": "gestIA",
+  "short_name": "gestIA",
+  "description": "Intelligence meets gesture. Reconoce tus gestos en el navegador y muéstralos como memes en tiempo real.",
   "id": "/",
   "start_url": "/",
   "scope": "/",
@@ -22,13 +22,13 @@
       "sizes": "1440x1000",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "Panel de control de Meme Vision en escritorio"
+      "label": "Panel de control de gestIA en escritorio"
     },
     {
       "src": "/assets/meme-vision-screenshot-mobile.png",
       "sizes": "390x844",
       "type": "image/png",
-      "label": "Panel de control de Meme Vision en móvil"
+      "label": "Panel de control de gestIA en móvil"
     }
   ]
 }

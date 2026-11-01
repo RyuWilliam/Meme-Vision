@@ -33,7 +33,7 @@ export function montarGestos(): ControlGestos {
   const btnCerrar = document.querySelector<HTMLButtonElement>('#btn-cerrar-gestos')!
   const btnIniciar = document.querySelector<HTMLButtonElement>('#btn-iniciar-gestos')!
   const btnCambiar = document.querySelector<HTMLButtonElement>('#btn-cambiar-gestos')!
-  const btnDebug = document.querySelector<HTMLButtonElement>('#btn-debug-gestos')!
+  const switchPuntos = document.querySelector<HTMLInputElement>('#switch-puntos')!
   const ctx = lienzo.getContext('2d')!
 
   let stream: MediaStream | null = null
@@ -49,7 +49,7 @@ export function montarGestos(): ControlGestos {
   precargarMemes()
   meme.src = urlMeme('ninguno')
   etiquetaEl.dataset.gesto = 'ninguno'
-  btnDebug.setAttribute('aria-pressed', 'false')
+  switchPuntos.checked = false
 
   async function abrir(): Promise<void> {
     if (dlg.open) return
@@ -268,9 +268,8 @@ export function montarGestos(): ControlGestos {
     detenerCamara()
     await iniciarCamara()
   })
-  btnDebug.addEventListener('click', () => {
-    debug = !debug
-    btnDebug.setAttribute('aria-pressed', String(debug))
+  switchPuntos.addEventListener('change', () => {
+    debug = switchPuntos.checked
     if (!debug) ctx.clearRect(0, 0, lienzo.width, lienzo.height)
   })
 
