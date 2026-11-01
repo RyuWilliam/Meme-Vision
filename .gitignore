@@ -39,3 +39,6 @@ nucleo/modelos/*.joblib
 
 # WASM de MediaPipe: se copia con scripts/copiar-wasm.mjs
 public/wasm/tasks-vision/
+
+# Sesiones fallidas del recolector (cámara ocupada / ventana negra)
+nucleo/datos/descartados/
