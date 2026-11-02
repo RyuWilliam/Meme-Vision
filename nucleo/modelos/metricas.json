@@ -1,0 +1,123 @@
+{
+  "exactitud": 0.7949886104783599,
+  "macro_f1": 0.6652609466256003,
+  "f1_ponderado": 0.8241414892400627,
+  "umbral": 0.48000000000000015,
+  "f1_validacion": 0.7793901613173737,
+  "por_clase": {
+    "like": {
+      "precision": 0.9803921568627451,
+      "recall": 0.9345794392523364,
+      "f1-score": 0.9569377990430622,
+      "support": 107.0
+    },
+    "llamada": {
+      "precision": 0.970873786407767,
+      "recall": 0.9174311926605505,
+      "f1-score": 0.9433962264150944,
+      "support": 109.0
+    },
+    "silencio": {
+      "precision": 0.6695652173913044,
+      "recall": 0.8850574712643678,
+      "f1-score": 0.7623762376237624,
+      "support": 87.0
+    },
+    "mewing": {
+      "precision": 0.8888888888888888,
+      "recall": 0.5294117647058824,
+      "f1-score": 0.663594470046083,
+      "support": 136.0
+    },
+    "ninguno": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 0.0
+    },
+    "accuracy": 0.7949886104783599,
+    "macro avg": {
+      "precision": 0.701944009910141,
+      "recall": 0.6532959735766274,
+      "f1-score": 0.6652609466256003,
+      "support": 439.0
+    },
+    "weighted avg": {
+      "precision": 0.8880826111724208,
+      "recall": 0.7949886104783599,
+      "f1-score": 0.8241414892400627,
+      "support": 439.0
+    }
+  },
+  "matriz_confusion": [
+    [
+      100,
+      2,
+      0,
+      0,
+      5
+    ],
+    [
+      1,
+      100,
+      1,
+      0,
+      7
+    ],
+    [
+      1,
+      0,
+      77,
+      9,
+      0
+    ],
+    [
+      0,
+      1,
+      37,
+      72,
+      26
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  ],
+  "etiquetas": [
+    "like",
+    "llamada",
+    "silencio",
+    "mewing",
+    "ninguno"
+  ],
+  "dataset": {
+    "total": 2323,
+    "por_etiqueta": {
+      "like": 354,
+      "llamada": 469,
+      "silencio": 386,
+      "mewing": 404,
+      "ninguno": 710
+    },
+    "sesiones": [
+      "20261101-122259",
+      "20261101-125106",
+      "20261101-125249",
+      "20261101-140602",
+      "20261101-141125",
+      "20261101-141649"
+    ],
+    "personas": [
+      "carmen",
+      "william"
+    ]
+  },
+  "muestras": {
+    "entrenamiento": 5624,
+    "validacion": 478,
+    "prueba": 439
+  }
+}
