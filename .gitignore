@@ -35,6 +35,7 @@ nucleo/.venv/
 nucleo/**/__pycache__/
 nucleo/**/*.pyc
 nucleo/datos/crudo/*.jsonl
+nucleo/datos/publicos/
 nucleo/modelos/*.joblib
 
 # WASM de MediaPipe: se copia con scripts/copiar-wasm.mjs

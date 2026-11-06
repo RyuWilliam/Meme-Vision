@@ -36,6 +36,7 @@ def exportar_modelo(
     metricas: dict[str, Any],
     ruta: Path,
     categorias_rostro: Sequence[str] = CATEGORIAS_ROSTRO,
+    tamano_entrada: int = TAMANO_ENTRADA,
 ) -> dict[str, Any]:
     capas = []
     for coeficientes, sesgos in zip(modelo.coefs_, modelo.intercepts_):
@@ -55,7 +56,7 @@ def exportar_modelo(
         "version": datetime.now(timezone.utc).strftime("%Y.%m.%d-%H%M"),
         "creado": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "gestos": list(gestos),
-        "tamano_entrada": TAMANO_ENTRADA,
+        "tamano_entrada": tamano_entrada,
         "categorias_rostro": list(categorias_rostro),
         "escalador": {
             "media": np.asarray(escalador.mean_, dtype=np.float64).tolist(),

@@ -11,7 +11,7 @@ import {
   obtenerConfig,
 } from './datos/db.ts'
 import type { Creacion, Ubicacion } from './datos/db.ts'
-import { derivarClaveDesdeContrasena } from './datos/cripto.ts'
+import { cifrarTexto, derivarClaveDesdeContrasena, descifrarTexto } from './datos/cripto.ts'
 import {
   estadoPermiso,
   mediaDisponible,
@@ -27,40 +27,33 @@ import {
   crearGrabadora,
   contarCamaras,
 } from './dispositivo.ts'
+import { GESTOS } from './vision/tipos.ts'
+import { urlMeme } from './vision/memes.ts'
+import { estadoModelosOffline, prepararModelosOffline } from './vision/offline.ts'
 import { montarGestos } from './vision/ui-gestos.ts'
 
-// Migración a Workbox (patrón de la Sesión 34): el SW lo genera
-// vite-plugin-pwa en cada build; el registro usa el módulo virtual del plugin
-// en lugar del sw.js manual de las guías 17-21.
-registerSW({
-  immediate: true,
-  onRegisteredSW(swUrl, registration) {
-    console.log('SW de Workbox registrado:', swUrl, registration)
-    if (!registration) return
-    // Como en apps reales: comprobar si hay versión nueva al volver a la app y cada
-    // hora, para no quedarse con el shell viejo hasta borrar la caché.
-    const revisar = () => void registration.update()
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) revisar()
-    })
-    window.setInterval(revisar, 60 * 60 * 1000)
-  },
-  onRegisterError(error) {
-    console.error('Error al registrar el SW de Workbox:', error)
-  },
-})
+type EventoInstalacion = Event & {
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>
+}
 
-// Con skipWaiting + clientsClaim, el SW nuevo toma el control enseguida; recargamos
-// una sola vez para servir el shell nuevo. Solo si ya había un SW controlando, para
-// no recargar en la primera visita.
-if ('serviceWorker' in navigator) {
-  const yaControlaba = !!navigator.serviceWorker.controller
-  let recargando = false
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!yaControlaba || recargando) return
-    recargando = true
-    window.location.reload()
-  })
+type Verificador = { cifrado: ArrayBuffer; iv: Uint8Array }
+
+const MAX_SEGUNDOS_VIDEO = 30
+const MAX_BYTES_VIDEO = 40 * 1024 * 1024
+const TEXTO_VERIFICADOR = 'memevision-v1'
+
+let db: IDBDatabase
+let creaciones: Creacion[] = []
+let claveSesion: CryptoKey | null = null
+let eventoInstalacion: EventoInstalacion | null = null
+let actualizacionDisponible = false
+let actualizarSW: ((reloadPage?: boolean) => Promise<void>) | null = null
+
+const qs = <T extends Element>(selector: string): T => {
+  const elemento = document.querySelector<T>(selector)
+  if (!elemento) throw new Error(`No se encontró el elemento ${selector}.`)
+  return elemento
 }
 
 const icon = (name: string) => {
@@ -68,301 +61,543 @@ const icon = (name: string) => {
     grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
     upload: '<path d="M12 16V4m0 0L7 9m5-5 5 5"/><path d="M5 20h14"/>',
     images: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="1.5"/><path d="m4 17 4-4 3 3 2-2 4 3"/>',
-    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
     camera: '<path d="M4 8a2 2 0 0 1 2-2h2l1.5-2h5L16 6h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8Z"/><circle cx="12" cy="12.5" r="3.5"/>',
-    face: '<circle cx="12" cy="12" r="8.5"/><circle cx="9" cy="10" r="1" fill="currentColor"/><circle cx="15" cy="10" r="1" fill="currentColor"/><path d="M8.5 14c2 2 5 2 7 0"/>',
-    challenge: '<path d="m12 3 2.4 5.1L20 9l-4 4 .9 5.7-4.9-2.7-4.9 2.7L8 13l-4-4 5.6-.9L12 3Z"/><path d="M5 20h14"/>',
-    settings: '<path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/><path d="m19 15-1.2-.7.1-1.3 1.1-.8-1.6-2.8-1.3.5-1-.9.1-1.4h-3.2l-.2 1.4-1 .9-1.3-.5-1.6 2.8 1.1.8.1 1.3-1.2.7 1.6 2.8 1.3-.5 1 .9.2 1.4h3.2l.1-1.4 1-.9 1.3.5L19 15Z"/>',
-    spark: '<path d="m12 3 1.3 5.7L19 10l-5.7 1.3L12 17l-1.3-5.7L5 10l5.7-1.3L12 3Z"/><path d="m19 3 .4 1.6L21 5l-1.6.4L19 7l-.4-1.6L17 5l1.6-.4L19 3Z"/>'
+    hand: '<path d="M8 11V5.5a1.5 1.5 0 0 1 3 0V11"/><path d="M11 10V4.5a1.5 1.5 0 0 1 3 0V10"/><path d="M14 10V6a1.5 1.5 0 0 1 3 0v6.5a6.5 6.5 0 0 1-13 0V9a1.5 1.5 0 0 1 3 0v3"/>',
+    download: '<path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 21h14"/>',
+    install: '<path d="M12 3v11m0 0 4-4m-4 4-4-4"/><path d="M4 16v4h16v-4"/>',
+    wifi: '<path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 16a5.5 5.5 0 0 1 7 0"/><circle cx="12" cy="19" r="1"/>',
+    offline: '<path d="m3 3 18 18"/><path d="M5 12.5a10 10 0 0 1 6.2-2.8"/><path d="M15.5 10.4A10 10 0 0 1 19 12.5"/><path d="M8.5 16a5.5 5.5 0 0 1 4-1.5"/><circle cx="12" cy="19" r="1"/>',
+    shield: '<path d="M12 3 5 6v5c0 4.4 2.9 8.3 7 9.8 4.1-1.5 7-5.4 7-9.8V6l-7-3Z"/><path d="m9 12 2 2 4-4"/>',
+    lock: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
+    spark: '<path d="m12 3 1.3 5.7L19 10l-5.7 1.3L12 17l-1.3-5.7L5 10l5.7-1.3L12 3Z"/><path d="m19 3 .4 1.6L21 5l-1.6.4L19 7l-.4-1.6L17 5l1.6-.4L19 3Z"/>',
+    close: '<path d="m6 6 12 12M18 6 6 18"/>',
+    check: '<path d="m5 12 4 4L19 6"/>',
+    trash: '<path d="M4 7h16"/><path d="m9 7 .7-2h4.6L15 7"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v5M14 11v5"/>',
+    pin: '<path d="M12 21s7-6.1 7-12a7 7 0 1 0-14 0c0 5.9 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/>',
   }
-  return `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">${paths[name]}</svg>`
+  return `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${paths[name] ?? ''}</svg>`
 }
 
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
+const app = qs<HTMLDivElement>('#app')
+app.innerHTML = `
 <div class="app-shell">
-  <aside class="sidebar">
-    <a class="brand" href="#" aria-label="Meme Vision inicio"><span class="brand-mark">${icon('spark')}</span><span>Meme<span>Vision</span></span></a>
-    <p class="menu-label">Explora MemeVision</p>
-    <nav class="main-nav" aria-label="Navegación principal">
-      <a class="nav-item active" href="#">${icon('grid')} <span>Inicio</span></a>
-      <a class="nav-item" href="#" id="nav-camara">${icon('camera')} <span>Cámara en vivo</span></a>
-      <a class="nav-item" href="#" id="nav-gestos">${icon('face')} <span>Gestos y filtros</span></a>
-      <a class="nav-item" href="#">${icon('challenge')} <span>Desafíos</span></a>
-      <a class="nav-item" href="#">${icon('images')} <span>Mis creaciones</span></a>
-    </nav>
-    <div class="sidebar-bottom"><a class="nav-item" href="#">${icon('settings')} <span>Configuración</span></a><div class="profile"><span class="avatar">NV</span><span><strong>Nuevo usuario</strong><small>Plan gratuito</small></span><span class="more">•••</span></div></div>
-  </aside>
-  <main class="content">
-    <header class="topbar"><div><p class="eyebrow">Tu espacio creativo</p><h1>Convierte tus gestos en memes.</h1></div><button class="notification" aria-label="Notificaciones">${icon('spark')}<span></span></button></header>
-    <section class="hero-panel"><div class="hero-copy"><span class="pill">${icon('camera')} Visión artificial on-device</span><h2>Tu cámara. Tus gestos. Tu próximo meme.</h2><p>MemeVision reconoce tu rostro, manos y cuerpo directamente en el navegador para crear experiencias en tiempo real.</p><button class="primary-button" id="btn-abrir-camara">${icon('camera')} Abrir cámara <span>→</span></button></div><div class="hero-art" aria-hidden="true"><div class="art-ring ring-one"></div><div class="art-ring ring-two"></div><div class="art-card"><span>GESTURE</span><strong>meme<br>ready</strong><i>${icon('face')}</i></div></div></section>
-    <section class="section-heading"><div><p class="eyebrow">Crea a tu manera</p><h2>Elige una experiencia</h2></div><button class="ghost-button">Ver todas <span>→</span></button></section>
-    <section class="stat-grid"><article class="stat-card"><span class="stat-icon blue">${icon('face')}</span><div><small>Rostro y expresiones</small><strong>Live</strong></div><span class="stat-note">Detección facial</span></article><article class="stat-card"><span class="stat-icon yellow">${icon('challenge')}</span><div><small>Desafíos activos</small><strong>03</strong></div><span class="stat-note">Para explorar</span></article><article class="stat-card"><span class="stat-icon coral">${icon('images')}</span><div><small>Mis creaciones</small><strong id="contador-creaciones">0</strong></div><span class="stat-note" id="nota-creaciones">Aún no hay datos</span></article></section>
-    <section class="empty-panel"><div class="empty-icon">${icon('camera')}</div><h2>Tu cámara es el punto de partida</h2><p>Activa una experiencia y deja que tus movimientos hagan el resto.</p><button class="secondary-button">${icon('challenge')} Explorar experiencias</button></section>
-    <section class="creaciones" aria-labelledby="creaciones-title">
-      <div class="creaciones-head">
-        <div>
-          <p class="eyebrow">Guardadas en tu dispositivo</p>
-          <h2 id="creaciones-title">Mis creaciones</h2>
+  <header class="site-header">
+    <a class="brand" href="#inicio" aria-label="Meme Vision, ir al inicio">
+      <span class="brand-mark">${icon('spark')}</span>
+      <span class="brand-name">Meme<span>Vision</span></span>
+    </a>
+    <div class="header-actions">
+      <span id="conexion-estado" class="conexion" role="status" aria-live="polite">En línea</span>
+      <button id="btn-instalar" class="button button-ghost button-small" type="button" hidden>${icon('install')} Instalar app</button>
+      <button id="btn-actualizar" class="button button-ghost button-small" type="button" hidden>Actualizar</button>
+    </div>
+  </header>
+
+  <main id="inicio">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="kicker"><span aria-hidden="true"></span> Visión artificial en tu navegador</p>
+        <h1 id="hero-title">Haz un gesto.<br />Te devolvemos un meme.</h1>
+        <p class="lede">Meme Vision reconoce 12 gestos con la cámara y los convierte en memes. El video se queda en tu dispositivo: sin cuentas, sin servidores, sin subidas.</p>
+        <div class="hero-actions">
+          <button id="btn-abrir-camara" class="button button-primary" type="button">${icon('camera')} Abrir cámara</button>
+          <button class="button button-secondary" type="button" data-abrir-gestos>${icon('hand')} Probar gestos</button>
         </div>
-        <span class="pill pill-soft" id="estado-cifrado">Cifrado inactivo</span>
+        <p class="hero-facts"><span>12 gestos</span><span>Modelo local</span><span>Sin cuenta</span></p>
       </div>
-      <form id="form-creacion" class="creaciones-form">
-        <input type="text" id="input-nombre" placeholder="Nombre de la creación..." required />
-        <select id="input-desafio" aria-label="Desafío">
-          <option value="Filtros">Filtros</option>
-          <option value="Gestos">Gestos</option>
-          <option value="Reto diario" selected>Reto diario</option>
-        </select>
-        <input type="text" id="input-nota" placeholder="Nota privada (opcional, se cifra)" />
-        <button type="button" id="btn-foto-creacion" class="secondary-button">${icon('camera')} Foto</button>
-        <button type="button" id="btn-ubicacion-creacion" class="secondary-button">📍 Ubicación</button>
-        <button type="submit" class="primary-button">Guardar</button>
-      </form>
-      <div id="adjuntos-creacion" class="adjuntos-creacion"></div>
-      <p id="adjuntos-estado" class="estado-nota"></p>
-      <div class="creaciones-seguridad">
-        <input type="password" id="input-contrasena" placeholder="Contraseña para cifrar notas" />
-        <button type="button" id="btn-activar-cifrado" class="secondary-button">Activar cifrado</button>
-        <p id="estado-seguridad" class="estado-nota">Cifrado inactivo en esta sesión.</p>
+      <div class="hero-stage">
+        <div class="viewfinder">
+          <div class="viewfinder-top"><span class="rec"><i></i> demo</span><span>on-device</span></div>
+          <img id="hero-meme" src="" alt="Meme de ejemplo: pulgar arriba" />
+          <span class="corner corner-tl" aria-hidden="true"></span>
+          <span class="corner corner-tr" aria-hidden="true"></span>
+          <span class="corner corner-bl" aria-hidden="true"></span>
+          <span class="corner corner-br" aria-hidden="true"></span>
+          <div class="viewfinder-caption"><span>gesture / like</span><strong aria-hidden="true">👍</strong></div>
+        </div>
+        <span class="sticker sticker-like" aria-hidden="true">👍 like</span>
+        <p class="hero-privacy">${icon('shield')} Tu cámara no sale del navegador.</p>
       </div>
-      <ul id="lista-creaciones" class="lista-creaciones"></ul>
+    </section>
+
+    <section class="steps-section" aria-labelledby="pasos-title">
+      <div class="section-head">
+        <p class="kicker">Cómo funciona</p>
+        <h2 id="pasos-title">Tres pasos. Cero fricción.</h2>
+      </div>
+      <ol class="steps">
+        <li>
+          <span class="step-num">01</span>
+          <h3>Activa la cámara</h3>
+          <p>Permite el acceso solo cuando pulses el botón. Puedes cerrar la vista en cualquier momento y la cámara se apaga.</p>
+        </li>
+        <li>
+          <span class="step-num">02</span>
+          <h3>Haz tu gesto</h3>
+          <p>El modelo reconoce la mano y el rostro en el navegador. Cuando mantienes el gesto, aparece su meme.</p>
+        </li>
+        <li>
+          <span class="step-num">03</span>
+          <h3>Guarda tu creación</h3>
+          <p>Las fotos, videos y notas se guardan en IndexedDB. La nota privada se cifra con tu contraseña.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="gestures-section" aria-labelledby="gestos-title">
+      <div class="section-head section-head-split">
+        <div>
+          <p class="kicker">Catálogo real</p>
+          <h2 id="gestos-title">Doce gestos, doce memes.</h2>
+          <p class="section-lede">Este es el catálogo que reconoce el modelo actual. Toca uno para abrir la vista de gestos.</p>
+        </div>
+        <button class="button button-secondary" type="button" data-abrir-gestos>${icon('hand')} Probar ahora</button>
+      </div>
+      <div id="lista-gestos" class="gesture-grid"></div>
+
+      <div class="offline-panel">
+        <span class="offline-icon">${icon('download')}</span>
+        <div class="offline-copy">
+          <h3>Preparar para usar sin conexión</h3>
+          <p>Descarga las tareas de MediaPipe y el WASM una sola vez (unos 27 MB). Después el reconocimiento funciona sin red.</p>
+          <p id="offline-estado" class="status-line" role="status" aria-live="polite">Comprobando modelos…</p>
+          <progress id="offline-progreso" class="progress" max="3" value="0" hidden></progress>
+        </div>
+        <button id="btn-preparar-offline" class="button button-ghost" type="button">Preparar sin conexión</button>
+      </div>
+    </section>
+
+    <section class="creations-section" aria-labelledby="creaciones-title">
+      <div class="section-head section-head-split">
+        <div>
+          <p class="kicker">Tu archivo local</p>
+          <h2 id="creaciones-title">Mis creaciones</h2>
+          <p class="section-lede">Tus fotos, videos y notas viven en este dispositivo. Nada se envía a un servidor.</p>
+        </div>
+        <span class="count-pill"><strong id="contador-creaciones">0</strong> guardadas</span>
+      </div>
+
+      <div class="creation-workspace">
+        <form id="form-creacion" class="creation-form">
+          <div class="field">
+            <label for="input-nombre">Nombre</label>
+            <input type="text" id="input-nombre" placeholder="Ej. Mi cara de lunes" maxlength="80" required />
+          </div>
+          <div class="field">
+            <label for="input-desafio">Tipo</label>
+            <select id="input-desafio">
+              <option value="Reto diario" selected>Reto diario</option>
+              <option value="Gesto">Gesto</option>
+              <option value="Espontáneo">Espontáneo</option>
+            </select>
+          </div>
+          <div class="field field-full">
+            <label for="input-nota">Nota privada <span>(opcional, se cifra)</span></label>
+            <textarea id="input-nota" rows="3" placeholder="¿Qué pasó cuando hiciste este gesto?"></textarea>
+          </div>
+          <div class="form-actions">
+            <button type="button" id="btn-foto-creacion" class="button button-secondary">${icon('camera')} Añadir foto</button>
+            <button type="button" id="btn-ubicacion-creacion" class="button button-secondary">${icon('pin')} Añadir ubicación</button>
+            <button type="submit" class="button button-primary">Guardar creación</button>
+          </div>
+          <p id="adjuntos-estado" class="status-line" role="status" aria-live="polite"></p>
+          <div id="adjuntos-creacion" class="adjuntos-creacion"></div>
+        </form>
+
+        <aside class="security-card" aria-labelledby="security-title">
+          <div class="security-head">
+            <h3 id="security-title">Nota privada</h3>
+            <span id="estado-cifrado" class="chip">Cifrado inactivo</span>
+          </div>
+          <p>La nota se cifra con AES-GCM y una clave derivada de tu contraseña. La contraseña nunca se guarda.</p>
+          <div class="field">
+            <label for="input-contrasena">Contraseña</label>
+            <input type="password" id="input-contrasena" autocomplete="new-password" minlength="8" placeholder="Mínimo 8 caracteres" />
+          </div>
+          <div class="field">
+            <label for="input-contrasena-confirm">Confirmar contraseña</label>
+            <input type="password" id="input-contrasena-confirm" autocomplete="new-password" minlength="8" placeholder="Repite la contraseña" />
+          </div>
+          <button type="button" id="btn-activar-cifrado" class="button button-secondary">${icon('lock')} Activar cifrado</button>
+          <p id="estado-seguridad" class="status-line" role="status" aria-live="polite">Cifrado inactivo en esta sesión.</p>
+          <p class="security-note">${icon('shield')} Si olvidas la contraseña, no se puede recuperar la nota.</p>
+        </aside>
+      </div>
+
+      <div class="creation-list-head">
+        <h3>Tus archivos</h3>
+        <p id="nota-creaciones" class="status-line">Aún no hay datos</p>
+      </div>
+      <ul id="lista-creaciones" class="creation-grid" aria-label="Creaciones guardadas"></ul>
     </section>
   </main>
+
+  <footer class="site-footer">
+    <p><strong>Meme Vision</strong> convierte gestos en memes sin sacar el video de tu dispositivo.</p>
+    <p class="footer-small">Hecho para la Electiva PWA · Funciona sin conexión después de preparar los modelos.</p>
+    <p id="instalar-ayuda" class="footer-small" hidden>En iPhone o iPad: toca Compartir y luego “Añadir a pantalla de inicio”.</p>
+  </footer>
 </div>
 
-<dialog id="dlg-permiso" class="dlg-aviso">
+<p id="app-alerta" class="app-alert" role="alert" hidden></p>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<dialog id="dlg-permiso" class="dialog dialog-small" aria-labelledby="permiso-titulo" aria-describedby="permiso-texto">
   <h3 id="permiso-titulo">Usaremos tu cámara solo para la foto</h3>
   <p id="permiso-texto"></p>
-  <div class="dlg-acciones">
-    <button type="button" id="btn-permiso-continuar" class="primary-button">Continuar</button>
-    <button type="button" id="btn-permiso-cancelar" class="ghost-button">Ahora no</button>
+  <div class="dialog-actions">
+    <button type="button" id="btn-permiso-continuar" class="button button-primary">Continuar</button>
+    <button type="button" id="btn-permiso-cancelar" class="button button-ghost">Ahora no</button>
   </div>
 </dialog>
 
-<dialog id="dlg-camara" class="dlg-camara">
-  <div class="camara-cab">
+<dialog id="dlg-camara" class="dialog dialog-camera" aria-labelledby="camara-titulo" aria-describedby="camara-estado">
+  <div class="dialog-head">
     <h2 id="camara-titulo">Cámara en vivo</h2>
-    <button type="button" id="btn-cerrar-camara" class="ghost-button">Cerrar ✕</button>
+    <button type="button" id="btn-cerrar-camara" class="button button-ghost button-small" aria-label="Cerrar cámara">${icon('close')}</button>
   </div>
-  <div class="modo-tabs" id="modo-tabs">
-    <button type="button" id="tab-foto" class="modo-tab activo">${icon('camera')} Foto</button>
-    <button type="button" id="tab-video" class="modo-tab">🎥 Vídeo</button>
+  <div class="mode-tabs" id="modo-tabs" role="tablist" aria-label="Modo de captura">
+    <button type="button" id="tab-foto" class="mode-tab is-active" role="tab" aria-selected="true">${icon('camera')} Foto</button>
+    <button type="button" id="tab-video" class="mode-tab" role="tab" aria-selected="false">▶ Vídeo</button>
   </div>
-  <div class="camara-marco">
-    <video id="video-camara" autoplay playsinline muted></video>
+  <div class="camera-frame">
+    <video id="video-camara" autoplay playsinline muted aria-label="Vista de la cámara"></video>
   </div>
-  <p id="camara-estado" class="camara-estado"></p>
-  <div id="nivel-audio" class="nivel-audio oculta"><span></span></div>
-  <div class="camara-controles">
-    <button type="button" id="btn-capturar" class="primary-button">${icon('camera')} Capturar</button>
-    <div id="controles-video" class="controles-video oculta">
-      <button type="button" id="btn-grabar" class="primary-button">● Grabar</button>
-      <span id="rec-indicador" class="rec-indicador oculta"><i></i><span id="rec-tiempo">00:00</span></span>
+  <p id="camara-estado" class="status-line" role="status" aria-live="polite"></p>
+  <div id="nivel-audio" class="audio-meter is-hidden"><span></span></div>
+  <div class="camera-controls">
+    <button type="button" id="btn-capturar" class="button button-primary">${icon('camera')} Capturar</button>
+    <div id="controles-video" class="video-controls is-hidden">
+      <button type="button" id="btn-grabar" class="button button-primary">● Grabar</button>
+      <span id="rec-indicador" class="rec-indicator is-hidden"><i></i><span id="rec-tiempo">00:00</span></span>
     </div>
-    <button type="button" id="btn-ubicacion-camara" class="secondary-button">📍 Ubicación</button>
-    <button type="button" id="btn-cambiar-camara" class="secondary-button oculta">⇄ Cambiar cámara</button>
+    <button type="button" id="btn-ubicacion-camara" class="button button-secondary">${icon('pin')} Ubicación</button>
+    <button type="button" id="btn-cambiar-camara" class="button button-secondary is-hidden">⇄ Cambiar cámara</button>
   </div>
-  <div id="camara-preview" class="camara-preview oculta">
+  <div id="camara-preview" class="camera-preview is-hidden">
     <img id="preview-img" alt="Foto capturada" />
-    <video id="preview-video" class="oculta" controls playsinline></video>
-    <div id="camara-preview-datos" class="camara-preview-datos">
-      <input type="text" id="camara-nombre" placeholder="Nombre de la creación..." />
-      <select id="camara-desafio" aria-label="Desafío">
-        <option value="Filtros">Filtros</option>
-        <option value="Gestos">Gestos</option>
+    <video id="preview-video" class="is-hidden" controls playsinline aria-label="Vista previa del video grabado"></video>
+    <div id="camara-preview-datos" class="camera-preview-data">
+      <label for="camara-nombre">Nombre de la creación</label>
+      <input type="text" id="camara-nombre" maxlength="80" placeholder="Ponle un nombre" />
+      <label for="camara-desafio">Tipo</label>
+      <select id="camara-desafio">
         <option value="Reto diario" selected>Reto diario</option>
+        <option value="Gesto">Gesto</option>
+        <option value="Espontáneo">Espontáneo</option>
       </select>
-      <span id="preview-ubicacion" class="chip-ubicacion oculta"></span>
-      <button type="button" id="btn-guardar-creacion" class="primary-button">Guardar creación</button>
+      <span id="preview-ubicacion" class="chip is-hidden"></span>
+      <button type="button" id="btn-guardar-creacion" class="button button-primary">Guardar creación</button>
     </div>
   </div>
+  <p class="dialog-note">Máximo ${MAX_SEGUNDOS_VIDEO} s de video. El clip se guarda en tu dispositivo.</p>
 </dialog>
 
-<dialog id="dlg-ver-video" class="dlg-ver-video">
-  <div class="camara-cab">
+<dialog id="dlg-ver-video" class="dialog dialog-viewer" aria-labelledby="ver-video-titulo">
+  <div class="dialog-head">
     <h2 id="ver-video-titulo">Vídeo guardado</h2>
-    <button type="button" id="btn-cerrar-ver-video" class="ghost-button">Cerrar ✕</button>
+    <button type="button" id="btn-cerrar-ver-video" class="button button-ghost button-small" aria-label="Cerrar visor">${icon('close')}</button>
   </div>
-  <img id="imagen-repro" class="oculta" alt="Foto guardada" />
-  <video id="video-repro" class="oculta" controls playsinline></video>
+  <img id="imagen-repro" class="is-hidden" alt="Foto guardada" />
+  <video id="video-repro" class="is-hidden" controls playsinline aria-label="Video guardado"></video>
 </dialog>
 
-<dialog id="dlg-gestos" class="dlg-gestos">
-  <div class="camara-cab">
-    <h2>Gestos en vivo</h2>
-    <button type="button" id="btn-cerrar-gestos" class="ghost-button">Cerrar ✕</button>
+<dialog id="dlg-gestos" class="dialog dialog-gestures" aria-labelledby="gestos-dialog-titulo">
+  <div class="dialog-head">
+    <h2 id="gestos-dialog-titulo">Gestos en vivo</h2>
+    <button type="button" id="btn-cerrar-gestos" class="button button-ghost button-small" aria-label="Cerrar gestos">${icon('close')}</button>
   </div>
-  <div class="gestos-layout">
-    <div class="gestos-video-wrap espejo" id="gestos-video-wrap">
-      <video id="video-gestos" autoplay playsinline muted></video>
-      <canvas id="lienzo-gestos"></canvas>
-      <span class="gestos-chip" id="gestos-motor">Motor: —</span>
+  <div class="gestures-layout">
+    <div class="gestures-video-wrap is-mirror" id="gestos-video-wrap">
+      <video id="video-gestos" autoplay playsinline muted aria-label="Vista de la cámara para reconocer gestos"></video>
+      <canvas id="lienzo-gestos" aria-hidden="true"></canvas>
+      <div id="gestos-placeholder" class="gestures-placeholder">
+        <span class="gestures-placeholder-icon">${icon('camera')}</span>
+        <strong>La cámara está apagada</strong>
+        <span>Pulsa «Activar cámara» para empezar.</span>
+      </div>
+      <span class="gestures-chip" id="gestos-motor">Motor: —</span>
     </div>
-    <aside class="gestos-panel">
-      <div class="gestos-meme-marco">
+    <aside class="gestures-panel">
+      <div class="gesture-meme-frame">
         <img id="meme-gestos" alt="Meme del gesto reconocido" />
       </div>
-      <p class="gestos-etiqueta" id="gesto-etiqueta">Esperando gesto…</p>
-      <div class="gestos-confianza" aria-hidden="true"><span id="gesto-confianza"></span></div>
-      <p class="gestos-estado" id="gestos-estado">Pulsa «Activar cámara» para empezar.</p>
-      <div class="gestos-acciones">
-        <button type="button" id="btn-iniciar-gestos" class="primary-button">Activar cámara</button>
-        <button type="button" id="btn-cambiar-gestos" class="secondary-button oculta">⇄ Cambiar cámara</button>
-        <button type="button" id="btn-debug-gestos" class="secondary-button">Puntos</button>
+      <p class="gesture-label" id="gesto-etiqueta">Esperando gesto…</p>
+      <div class="confidence" aria-hidden="true"><span id="gesto-confianza"></span></div>
+      <p class="status-line" id="gestos-estado" role="status" aria-live="polite">Pulsa «Activar cámara» para empezar.</p>
+      <div class="gesture-actions">
+        <button type="button" id="btn-iniciar-gestos" class="button button-primary">Activar cámara</button>
+        <button type="button" id="btn-cambiar-gestos" class="button button-secondary is-hidden">⇄ Cambiar cámara</button>
+        <button type="button" id="btn-debug-gestos" class="button button-ghost button-small" aria-pressed="false">Puntos</button>
       </div>
+      <p class="gesture-hint">El gesto se mantiene unos instantes antes de cambiar el meme. Cierra la vista para apagar la cámara.</p>
     </aside>
   </div>
 </dialog>
 `
 
 // ---------------------------------------------------------------------------
-// Sesión 22 — IndexedDB + Web Crypto aplicados a MemeVision: las creaciones
-// viven en IndexedDB y la nota privada se cifra con una clave derivada de la
-// contraseña del usuario (PBKDF2 + AES-GCM).
-let db: IDBDatabase
-let creaciones: Creacion[] = []
-let claveSesion: CryptoKey | null = null // CryptoKey derivada de la contraseña — nunca se guarda
+// Referencias del DOM
+const conexionEl = qs<HTMLSpanElement>('#conexion-estado')
+const btnInstalarEl = qs<HTMLButtonElement>('#btn-instalar')
+const btnActualizarEl = qs<HTMLButtonElement>('#btn-actualizar')
+const instalarAyudaEl = qs<HTMLParagraphElement>('#instalar-ayuda')
+const appAlertaEl = qs<HTMLParagraphElement>('#app-alerta')
+const toastEl = qs<HTMLDivElement>('#toast')
 
-const listaCreacionesEl = document.querySelector<HTMLUListElement>('#lista-creaciones')!
-const formCreacionEl = document.querySelector<HTMLFormElement>('#form-creacion')!
-const inputNombreEl = document.querySelector<HTMLInputElement>('#input-nombre')!
-const inputDesafioEl = document.querySelector<HTMLSelectElement>('#input-desafio')!
-const inputNotaEl = document.querySelector<HTMLInputElement>('#input-nota')!
-const inputContrasenaEl = document.querySelector<HTMLInputElement>('#input-contrasena')!
-const btnActivarCifradoEl = document.querySelector<HTMLButtonElement>('#btn-activar-cifrado')!
-const estadoSeguridadEl = document.querySelector<HTMLParagraphElement>('#estado-seguridad')!
-const contadorEl = document.querySelector<HTMLElement>('#contador-creaciones')!
-const notaContadorEl = document.querySelector<HTMLElement>('#nota-creaciones')!
-const estadoCifradoEl = document.querySelector<HTMLElement>('#estado-cifrado')!
+const btnAbrirCamaraEl = qs<HTMLButtonElement>('#btn-abrir-camara')
+const listaGestosEl = qs<HTMLDivElement>('#lista-gestos')
+const heroMemeEl = qs<HTMLImageElement>('#hero-meme')
+const btnPrepararOfflineEl = qs<HTMLButtonElement>('#btn-preparar-offline')
+const offlineEstadoEl = qs<HTMLParagraphElement>('#offline-estado')
+const offlineProgresoEl = qs<HTMLProgressElement>('#offline-progreso')
 
-// --- Sesión 24 — elementos de cámara, micrófono y ubicación -----------------
-const navCamaraEl = document.querySelector<HTMLAnchorElement>('#nav-camara')!
-const btnAbrirCamaraEl = document.querySelector<HTMLButtonElement>('#btn-abrir-camara')!
-const btnFotoCreacionEl = document.querySelector<HTMLButtonElement>('#btn-foto-creacion')!
-const btnUbicacionCreacionEl = document.querySelector<HTMLButtonElement>('#btn-ubicacion-creacion')!
-const adjuntosCreacionEl = document.querySelector<HTMLDivElement>('#adjuntos-creacion')!
-const adjuntosEstadoEl = document.querySelector<HTMLParagraphElement>('#adjuntos-estado')!
+const listaCreacionesEl = qs<HTMLUListElement>('#lista-creaciones')
+const formCreacionEl = qs<HTMLFormElement>('#form-creacion')
+const inputNombreEl = qs<HTMLInputElement>('#input-nombre')
+const inputDesafioEl = qs<HTMLSelectElement>('#input-desafio')
+const inputNotaEl = qs<HTMLTextAreaElement>('#input-nota')
+const inputContrasenaEl = qs<HTMLInputElement>('#input-contrasena')
+const inputContrasenaConfirmEl = qs<HTMLInputElement>('#input-contrasena-confirm')
+const btnActivarCifradoEl = qs<HTMLButtonElement>('#btn-activar-cifrado')
+const estadoSeguridadEl = qs<HTMLParagraphElement>('#estado-seguridad')
+const contadorEl = qs<HTMLElement>('#contador-creaciones')
+const notaContadorEl = qs<HTMLParagraphElement>('#nota-creaciones')
+const estadoCifradoEl = qs<HTMLElement>('#estado-cifrado')
+const btnFotoCreacionEl = qs<HTMLButtonElement>('#btn-foto-creacion')
+const btnUbicacionCreacionEl = qs<HTMLButtonElement>('#btn-ubicacion-creacion')
+const adjuntosCreacionEl = qs<HTMLDivElement>('#adjuntos-creacion')
+const adjuntosEstadoEl = qs<HTMLParagraphElement>('#adjuntos-estado')
 
-const dlgPermisoEl = document.querySelector<HTMLDialogElement>('#dlg-permiso')!
-const permisoTituloEl = document.querySelector<HTMLHeadingElement>('#permiso-titulo')!
-const permisoTextoEl = document.querySelector<HTMLParagraphElement>('#permiso-texto')!
-const btnPermisoContinuarEl = document.querySelector<HTMLButtonElement>('#btn-permiso-continuar')!
-const btnPermisoCancelarEl = document.querySelector<HTMLButtonElement>('#btn-permiso-cancelar')!
+const dlgPermisoEl = qs<HTMLDialogElement>('#dlg-permiso')
+const permisoTituloEl = qs<HTMLHeadingElement>('#permiso-titulo')
+const permisoTextoEl = qs<HTMLParagraphElement>('#permiso-texto')
+const btnPermisoContinuarEl = qs<HTMLButtonElement>('#btn-permiso-continuar')
+const btnPermisoCancelarEl = qs<HTMLButtonElement>('#btn-permiso-cancelar')
 
-const dlgCamaraEl = document.querySelector<HTMLDialogElement>('#dlg-camara')!
-const camaraTituloEl = document.querySelector<HTMLHeadingElement>('#camara-titulo')!
-const videoCamaraEl = document.querySelector<HTMLVideoElement>('#video-camara')!
-const camaraEstadoEl = document.querySelector<HTMLParagraphElement>('#camara-estado')!
-const btnCerrarCamaraEl = document.querySelector<HTMLButtonElement>('#btn-cerrar-camara')!
-const btnCapturarEl = document.querySelector<HTMLButtonElement>('#btn-capturar')!
-const btnUbicacionCamaraEl = document.querySelector<HTMLButtonElement>('#btn-ubicacion-camara')!
-const btnCambiarCamaraEl = document.querySelector<HTMLButtonElement>('#btn-cambiar-camara')!
-const nivelAudioEl = document.querySelector<HTMLDivElement>('#nivel-audio')!
-const nivelAudioBarraEl = document.querySelector<HTMLSpanElement>('#nivel-audio span')!
-const modoTabsEl = document.querySelector<HTMLDivElement>('#modo-tabs')!
-const tabFotoEl = document.querySelector<HTMLButtonElement>('#tab-foto')!
-const tabVideoEl = document.querySelector<HTMLButtonElement>('#tab-video')!
-const controlesVideoEl = document.querySelector<HTMLDivElement>('#controles-video')!
-const btnGrabarEl = document.querySelector<HTMLButtonElement>('#btn-grabar')!
-const recIndicadorEl = document.querySelector<HTMLSpanElement>('#rec-indicador')!
-const recTiempoEl = document.querySelector<HTMLSpanElement>('#rec-tiempo')!
-const camaraPreviewEl = document.querySelector<HTMLDivElement>('#camara-preview')!
-const camaraPreviewDatosEl = document.querySelector<HTMLDivElement>('#camara-preview-datos')!
-const previewImgEl = document.querySelector<HTMLImageElement>('#preview-img')!
-const previewVideoEl = document.querySelector<HTMLVideoElement>('#preview-video')!
-const previewUbicacionEl = document.querySelector<HTMLSpanElement>('#preview-ubicacion')!
-const camaraNombreEl = document.querySelector<HTMLInputElement>('#camara-nombre')!
-const camaraDesafioEl = document.querySelector<HTMLSelectElement>('#camara-desafio')!
-const btnGuardarCreacionEl = document.querySelector<HTMLButtonElement>('#btn-guardar-creacion')!
+const dlgCamaraEl = qs<HTMLDialogElement>('#dlg-camara')
+const camaraTituloEl = qs<HTMLHeadingElement>('#camara-titulo')
+const videoCamaraEl = qs<HTMLVideoElement>('#video-camara')
+const camaraEstadoEl = qs<HTMLParagraphElement>('#camara-estado')
+const btnCerrarCamaraEl = qs<HTMLButtonElement>('#btn-cerrar-camara')
+const btnCapturarEl = qs<HTMLButtonElement>('#btn-capturar')
+const btnUbicacionCamaraEl = qs<HTMLButtonElement>('#btn-ubicacion-camara')
+const btnCambiarCamaraEl = qs<HTMLButtonElement>('#btn-cambiar-camara')
+const nivelAudioEl = qs<HTMLDivElement>('#nivel-audio')
+const nivelAudioBarraEl = qs<HTMLSpanElement>('#nivel-audio span')
+const modoTabsEl = qs<HTMLDivElement>('#modo-tabs')
+const tabFotoEl = qs<HTMLButtonElement>('#tab-foto')
+const tabVideoEl = qs<HTMLButtonElement>('#tab-video')
+const controlesVideoEl = qs<HTMLDivElement>('#controles-video')
+const btnGrabarEl = qs<HTMLButtonElement>('#btn-grabar')
+const recIndicadorEl = qs<HTMLSpanElement>('#rec-indicador')
+const recTiempoEl = qs<HTMLSpanElement>('#rec-tiempo')
+const camaraPreviewEl = qs<HTMLDivElement>('#camara-preview')
+const camaraPreviewDatosEl = qs<HTMLDivElement>('#camara-preview-datos')
+const previewImgEl = qs<HTMLImageElement>('#preview-img')
+const previewVideoEl = qs<HTMLVideoElement>('#preview-video')
+const previewUbicacionEl = qs<HTMLSpanElement>('#preview-ubicacion')
+const camaraNombreEl = qs<HTMLInputElement>('#camara-nombre')
+const camaraDesafioEl = qs<HTMLSelectElement>('#camara-desafio')
+const btnGuardarCreacionEl = qs<HTMLButtonElement>('#btn-guardar-creacion')
 
-const dlgVerVideoEl = document.querySelector<HTMLDialogElement>('#dlg-ver-video')!
-const videoReproEl = document.querySelector<HTMLVideoElement>('#video-repro')!
-const imagenReproEl = document.querySelector<HTMLImageElement>('#imagen-repro')!
-const verVisorTituloEl = document.querySelector<HTMLHeadingElement>('#ver-video-titulo')!
-const btnCerrarVerVideoEl = document.querySelector<HTMLButtonElement>('#btn-cerrar-ver-video')!
+const dlgVerVideoEl = qs<HTMLDialogElement>('#dlg-ver-video')
+const videoReproEl = qs<HTMLVideoElement>('#video-repro')
+const imagenReproEl = qs<HTMLImageElement>('#imagen-repro')
+const verVisorTituloEl = qs<HTMLHeadingElement>('#ver-video-titulo')
+const btnCerrarVerVideoEl = qs<HTMLButtonElement>('#btn-cerrar-ver-video')
 
+// ---------------------------------------------------------------------------
+// Estado de UI
 let streamActual: MediaStream | null = null
 let medidor: { leer(): number; cerrar(): void } | null = null
 let animacionNivel = 0
-let tipoMedio: 'foto' | 'video' = 'foto' // pestaña activa: Foto o Vídeo
+let tipoMedio: 'foto' | 'video' = 'foto'
 let modoEntrada: 'adjuntar' | 'crear' = 'crear'
-let facingMode: 'user' | 'environment' = 'environment' // cámara trasera por defecto (frontal/trasera en móvil)
+let facingMode: 'user' | 'environment' = 'environment'
 let grabadora: { iniciar(): void; detener(): Promise<Blob>; estaGrabando(): boolean; destruir(): void } | null = null
 let grabando = false
 let temporizadorRec = 0
 let segundosRec = 0
-let fotoPendiente: Blob | null = null // adjunto del formulario "Mis creaciones"
+let fotoPendiente: Blob | null = null
 let ubicacionPendiente: Ubicacion | null = null
-let capturaCamara: Blob | null = null // foto o vídeo capturado en la vista "Cámara en vivo"
+let capturaCamara: Blob | null = null
 let ubicacionCamara: Ubicacion | null = null
-let adjuntoFotoUrl: string | null = null // object URL de la miniatura del formulario
-let previewUrl: string | null = null // object URL de la miniatura del diálogo
-let urlVisor: string | null = null // object URL del visor (foto o vídeo)
-let urlsActivas: string[] = [] // object URLs de las miniaturas de la lista
+let adjuntoFotoUrl: string | null = null
+let previewUrl: string | null = null
+let urlVisor: string | null = null
+let urlsActivas: string[] = []
 
+// ---------------------------------------------------------------------------
+// Utilidades de UI
+function mostrarToast(texto: string): void {
+  toastEl.textContent = texto
+  toastEl.hidden = false
+  window.clearTimeout(Number(toastEl.dataset.temporizador ?? 0))
+  const temporizador = window.setTimeout(() => {
+    toastEl.hidden = true
+  }, 4200)
+  toastEl.dataset.temporizador = String(temporizador)
+}
+
+function mostrarAlerta(texto: string): void {
+  appAlertaEl.textContent = texto
+  appAlertaEl.hidden = false
+}
+
+function ocultarAlerta(): void {
+  appAlertaEl.hidden = true
+  appAlertaEl.textContent = ''
+}
+
+function actualizarConexion(): void {
+  const enLinea = navigator.onLine
+  conexionEl.textContent = enLinea ? 'En línea' : 'Sin conexión'
+  conexionEl.classList.toggle('is-offline', !enLinea)
+  conexionEl.setAttribute('aria-label', enLinea ? 'Conexión a internet disponible' : 'Sin conexión a internet')
+}
+
+function actualizarBotonActualizar(): void {
+  btnActualizarEl.hidden = !actualizacionDisponible
+}
+
+function estaInstalada(): boolean {
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true
+  )
+}
+
+function esIOS(): boolean {
+  const ua = navigator.userAgent
+  return /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+}
+
+function pintarInstalacion(): void {
+  if (estaInstalada()) {
+    btnInstalarEl.hidden = true
+    instalarAyudaEl.hidden = true
+    return
+  }
+  btnInstalarEl.hidden = !eventoInstalacion
+  instalarAyudaEl.hidden = !(esIOS() && !eventoInstalacion)
+}
+
+async function pedirInstalacion(): Promise<void> {
+  if (!eventoInstalacion) return
+  const evento = eventoInstalacion
+  eventoInstalacion = null
+  btnInstalarEl.hidden = true
+  await evento.prompt()
+  const eleccion = await evento.userChoice
+  if (eleccion.outcome === 'accepted') {
+    mostrarToast('Instalación aceptada. Abre Meme Vision desde su icono.')
+  } else {
+    mostrarToast('Instalación cancelada. Puedes intentarlo desde el menú del navegador.')
+  }
+  pintarInstalacion()
+}
+
+function pintarGestos(): void {
+  listaGestosEl.innerHTML = ''
+  for (const [id, config] of Object.entries(GESTOS)) {
+    if (id === 'ninguno') continue
+    const boton = document.createElement('button')
+    boton.type = 'button'
+    boton.className = 'gesture-card'
+    boton.setAttribute('aria-label', `Probar el gesto ${config.etiqueta}`)
+    boton.dataset.gesto = id
+
+    const imagen = document.createElement('img')
+    imagen.src = urlMeme(id as keyof typeof GESTOS, 0)
+    imagen.alt = `Meme del gesto ${config.etiqueta}`
+    imagen.loading = 'lazy'
+    imagen.decoding = 'async'
+
+    const emoji = document.createElement('span')
+    emoji.className = 'gesture-emoji'
+    emoji.textContent = config.emoji
+    emoji.setAttribute('aria-hidden', 'true')
+
+    const etiqueta = document.createElement('span')
+    etiqueta.className = 'gesture-card-label'
+    etiqueta.textContent = config.etiqueta
+
+    boton.append(imagen, emoji, etiqueta)
+    boton.addEventListener('click', () => void gestos.abrir())
+    listaGestosEl.append(boton)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Creaciones
 const pintarCreaciones = () => {
-  // Cada repintado libera los object URLs del repintado anterior: una fuga que
-  // no se nota en una prueba corta y sí en una sesión de media hora (S24 §4).
   urlsActivas.forEach(url => URL.revokeObjectURL(url))
   urlsActivas = []
   listaCreacionesEl.innerHTML = ''
+
   if (creaciones.length === 0) {
     const vacia = document.createElement('li')
-    vacia.className = 'creacion-vacia'
-    vacia.textContent = 'Todavía no has guardado creaciones.'
+    vacia.className = 'creation-empty'
+    vacia.textContent = 'Todavía no has guardado creaciones. Abre la cámara o prepara un gesto para empezar.'
     listaCreacionesEl.append(vacia)
     return
   }
+
   creaciones.forEach(creacion => {
     const li = document.createElement('li')
-    li.className = 'creacion'
+    li.className = 'creation'
 
     if (creacion.video) {
       const url = URL.createObjectURL(creacion.video)
       urlsActivas.push(url)
       const miniatura = document.createElement('video')
-      miniatura.className = 'miniatura'
+      miniatura.className = 'creation-thumb'
       miniatura.src = url
       miniatura.muted = true
       miniatura.playsInline = true
       miniatura.preload = 'metadata'
+      miniatura.setAttribute('aria-label', `Video de ${creacion.nombre}`)
       li.append(miniatura)
     } else if (creacion.foto) {
       const url = URL.createObjectURL(creacion.foto)
       urlsActivas.push(url)
       const miniatura = document.createElement('img')
-      miniatura.className = 'miniatura'
+      miniatura.className = 'creation-thumb'
       miniatura.src = url
       miniatura.alt = `Foto de ${creacion.nombre}`
+      miniatura.loading = 'lazy'
       li.append(miniatura)
     }
 
     const info = document.createElement('div')
-    info.className = 'creacion-info'
+    info.className = 'creation-info'
     const nombre = document.createElement('strong')
     nombre.textContent = creacion.nombre
     const meta = document.createElement('span')
-    meta.textContent = creacion.desafio + ' · ' + new Date(creacion.fecha).toLocaleDateString('es-CO')
+    const fecha = new Date(creacion.fecha)
+    const fechaTexto = Number.isNaN(fecha.getTime()) ? 'Fecha desconocida' : fecha.toLocaleDateString('es-CO')
+    meta.textContent = `${creacion.desafio} · ${fechaTexto}`
     info.append(nombre, meta)
 
     if (creacion.ubicacion) {
-      const ubic = document.createElement('span')
-      ubic.className = 'chip-ubicacion'
-      ubic.textContent = `📍 ${creacion.ubicacion.lat.toFixed(4)}, ${creacion.ubicacion.lon.toFixed(4)} (±${creacion.ubicacion.precision} m)`
-      info.append(ubic)
+      const ubicacion = document.createElement('span')
+      ubicacion.className = 'chip'
+      ubicacion.textContent = `📍 ${creacion.ubicacion.lat.toFixed(4)}, ${creacion.ubicacion.lon.toFixed(4)} (±${creacion.ubicacion.precision} m)`
+      info.append(ubicacion)
     }
 
     const acciones = document.createElement('div')
-    acciones.className = 'creacion-acciones'
-
+    acciones.className = 'creation-actions'
     const notaEl = document.createElement('p')
-    notaEl.className = 'creacion-nota oculta'
+    notaEl.className = 'creation-note is-hidden'
 
     if (creacion.video || creacion.foto) {
       const ver = document.createElement('button')
       ver.type = 'button'
-      ver.className = 'ghost-button'
-      ver.textContent = creacion.video ? '▶ Ver' : 'Ver'
+      ver.className = 'button button-ghost button-small'
+      ver.textContent = creacion.video ? 'Ver video' : 'Ver foto'
+      ver.setAttribute('aria-label', `Abrir ${creacion.video ? 'video' : 'foto'} de ${creacion.nombre}`)
       ver.addEventListener('click', () => abrirVisor(creacion))
       acciones.append(ver)
     }
@@ -370,19 +605,27 @@ const pintarCreaciones = () => {
     if (creacion.notaCifrada) {
       const verNota = document.createElement('button')
       verNota.type = 'button'
-      verNota.className = 'ghost-button'
+      verNota.className = 'button button-ghost button-small'
       verNota.textContent = 'Ver nota'
-      verNota.addEventListener('click', () => mostrarNota(creacion, notaEl))
+      verNota.setAttribute('aria-label', `Ver nota privada de ${creacion.nombre}`)
+      verNota.addEventListener('click', () => void mostrarNota(creacion, notaEl))
       acciones.append(verNota)
     }
 
     const borrar = document.createElement('button')
     borrar.type = 'button'
-    borrar.className = 'ghost-button peligro'
+    borrar.className = 'button button-ghost button-small button-danger'
     borrar.textContent = 'Eliminar'
+    borrar.setAttribute('aria-label', `Eliminar ${creacion.nombre}`)
     borrar.addEventListener('click', async () => {
-      await eliminarCreacion(db, creacion.id)
-      await refrescar()
+      if (!window.confirm(`¿Eliminar «${creacion.nombre}»? Esta acción no se puede deshacer.`)) return
+      try {
+        await eliminarCreacion(db, creacion.id)
+        await refrescar()
+        mostrarToast('Creación eliminada.')
+      } catch (error) {
+        mostrarAlerta(`No se pudo eliminar la creación: ${error instanceof Error ? error.message : 'error desconocido'}.`)
+      }
     })
     acciones.append(borrar)
 
@@ -391,17 +634,21 @@ const pintarCreaciones = () => {
   })
 }
 
-const refrescar = async () => {
-  creaciones = await obtenerTodasLasCreaciones(db)
-  creaciones.sort((a, b) => b.fecha.localeCompare(a.fecha))
-  contadorEl.textContent = String(creaciones.length)
-  notaContadorEl.textContent = creaciones.length === 0 ? 'Aún no hay datos' : 'Guardadas en tu dispositivo'
-  pintarCreaciones()
+const refrescar = async (): Promise<void> => {
+  try {
+    creaciones = await obtenerTodasLasCreaciones(db)
+    creaciones.sort((a, b) => b.fecha.localeCompare(a.fecha))
+    contadorEl.textContent = String(creaciones.length)
+    notaContadorEl.textContent = creaciones.length === 0 ? 'Aún no hay datos' : 'Guardadas en tu dispositivo'
+    pintarCreaciones()
+  } catch (error) {
+    mostrarAlerta(`No se pudieron leer las creaciones: ${error instanceof Error ? error.message : 'error desconocido'}.`)
+  }
 }
 
-async function mostrarNota(creacion: Creacion, notaEl: HTMLElement) {
-  if (notaEl.textContent) {
-    notaEl.classList.toggle('oculta')
+async function mostrarNota(creacion: Creacion, notaEl: HTMLElement): Promise<void> {
+  if (notaEl.dataset.descifrada === '1') {
+    notaEl.classList.toggle('is-hidden')
     return
   }
   if (!claveSesion) {
@@ -411,40 +658,89 @@ async function mostrarNota(creacion: Creacion, notaEl: HTMLElement) {
   }
   try {
     notaEl.textContent = await leerNotaPrivada(claveSesion, creacion)
-    notaEl.classList.remove('oculta')
+    notaEl.dataset.descifrada = '1'
+    notaEl.classList.remove('is-hidden')
   } catch {
-    notaEl.textContent = 'No se pudo descifrar: la contraseña no coincide.'
-    notaEl.classList.remove('oculta')
+    delete notaEl.dataset.descifrada
+    notaEl.textContent = 'No se pudo descifrar: la contraseña no coincide. Corrige la contraseña y vuelve a intentarlo.'
+    notaEl.classList.remove('is-hidden')
   }
 }
 
-async function activarCifrado() {
+async function activarCifrado(): Promise<void> {
   const contrasena = inputContrasenaEl.value
-  if (contrasena.length < 6) {
-    estadoSeguridadEl.textContent = 'La contraseña debe tener al menos 6 caracteres.'
+  const confirmacion = inputContrasenaConfirmEl.value
+
+  if (contrasena.length < 8) {
+    estadoSeguridadEl.textContent = 'La contraseña debe tener al menos 8 caracteres.'
+    inputContrasenaEl.focus()
     return
   }
-  let sal = await obtenerConfig<Uint8Array>(db, 'sal')
-  if (!sal) {
-    sal = crypto.getRandomValues(new Uint8Array(16)) // la sal no es secreta: se guarda junto a los datos
-    await guardarConfig(db, 'sal', sal)
+  if (contrasena !== confirmacion) {
+    estadoSeguridadEl.textContent = 'Las contraseñas no coinciden.'
+    inputContrasenaConfirmEl.focus()
+    return
   }
-  claveSesion = await derivarClaveDesdeContrasena(contrasena, sal)
-  inputContrasenaEl.value = ''
-  estadoSeguridadEl.textContent = 'Cifrado activo para esta sesión. La contraseña no se guarda en ningún lado.'
-  estadoCifradoEl.textContent = 'Cifrado activo'
+
+  try {
+    let sal = await obtenerConfig<Uint8Array>(db, 'sal')
+    if (!sal) {
+      sal = crypto.getRandomValues(new Uint8Array(16))
+      await guardarConfig(db, 'sal', sal)
+    }
+    const clave = await derivarClaveDesdeContrasena(contrasena, sal)
+    const verificador = await obtenerConfig<Verificador>(db, 'verificador')
+    let avisoNotasAnteriores = false
+
+    if (verificador) {
+      try {
+        const texto = await descifrarTexto(clave, verificador)
+        if (texto !== TEXTO_VERIFICADOR) throw new Error('verificador inválido')
+      } catch {
+        estadoSeguridadEl.textContent = 'Contraseña incorrecta. No se activó el cifrado.'
+        estadoCifradoEl.textContent = claveSesion ? 'Cifrado activo' : 'Cifrado inactivo'
+        return
+      }
+    } else {
+      const { cifrado, iv } = await cifrarTexto(clave, TEXTO_VERIFICADOR)
+      await guardarConfig(db, 'verificador', { cifrado, iv })
+      avisoNotasAnteriores = creaciones.some(creacion => creacion.notaCifrada)
+    }
+
+    claveSesion = clave
+    document.querySelectorAll<HTMLElement>('.creation-note').forEach(nota => {
+      delete nota.dataset.descifrada
+      nota.textContent = ''
+      nota.classList.add('is-hidden')
+    })
+    inputContrasenaEl.value = ''
+    inputContrasenaConfirmEl.value = ''
+    estadoSeguridadEl.textContent = avisoNotasAnteriores
+      ? 'Cifrado activo. Las notas anteriores solo se leerán si usaste la misma contraseña.'
+      : 'Cifrado activo para esta sesión. La contraseña no se guarda.'
+    estadoCifradoEl.textContent = 'Cifrado activo'
+    ocultarAlerta()
+    mostrarToast('Cifrado activado. Ya puedes guardar notas privadas.')
+  } catch (error) {
+    estadoSeguridadEl.textContent = `No se pudo activar el cifrado: ${error instanceof Error ? error.message : 'error desconocido'}.`
+  }
 }
 
-formCreacionEl.addEventListener('submit', async (evento) => {
+formCreacionEl.addEventListener('submit', async evento => {
   evento.preventDefault()
   const nombre = inputNombreEl.value.trim()
   const nota = inputNotaEl.value.trim()
-  if (!nombre) return
+  if (!nombre) {
+    estadoSeguridadEl.textContent = 'Ponle un nombre a la creación.'
+    inputNombreEl.focus()
+    return
+  }
   if (nota && !claveSesion) {
     estadoSeguridadEl.textContent = 'Para guardar una nota privada, primero activa el cifrado con tu contraseña.'
     inputContrasenaEl.focus()
     return
   }
+
   const base = {
     id: crypto.randomUUID(),
     nombre,
@@ -453,28 +749,33 @@ formCreacionEl.addEventListener('submit', async (evento) => {
     foto: fotoPendiente,
     ubicacion: ubicacionPendiente,
   }
-  if (nota) {
-    await guardarCreacionConNota(db, claveSesion as CryptoKey, { ...base, notaPrivada: nota })
-  } else {
-    await guardarCreacion(db, { ...base, notaCifrada: null, notaIv: null })
+
+  try {
+    if (nota) {
+      await guardarCreacionConNota(db, claveSesion as CryptoKey, { ...base, notaPrivada: nota })
+    } else {
+      await guardarCreacion(db, { ...base, notaCifrada: null, notaIv: null })
+    }
+    formCreacionEl.reset()
+    fotoPendiente = null
+    ubicacionPendiente = null
+    pintaAdjuntosFormulario()
+    adjuntosEstadoEl.textContent = ''
+    await refrescar()
+    mostrarToast('Creación guardada en tu dispositivo.')
+    ocultarAlerta()
+  } catch (error) {
+    mostrarAlerta(`No se pudo guardar la creación: ${error instanceof Error ? error.message : 'error desconocido'}.`)
   }
-  formCreacionEl.reset()
-  fotoPendiente = null
-  ubicacionPendiente = null
-  pintaAdjuntosFormulario()
-  adjuntosEstadoEl.textContent = ''
-  await refrescar()
 })
 
 // ---------------------------------------------------------------------------
-// Sesión 24 — cámara, micrófono y ubicación aplicados a MemeVision.
-// Un único <dialog> de cámara compartido y un solo flujo abierto a la vez.
-function setEstadoCamara(texto: string) {
+// Cámara, foto, video y ubicación
+function setEstadoCamara(texto: string): void {
   camaraEstadoEl.textContent = texto
 }
 
-/** Miniatura + chip de los adjuntos pendientes del formulario "Mis creaciones". */
-function pintaAdjuntosFormulario() {
+function pintaAdjuntosFormulario(): void {
   if (adjuntoFotoUrl) {
     URL.revokeObjectURL(adjuntoFotoUrl)
     adjuntoFotoUrl = null
@@ -483,33 +784,33 @@ function pintaAdjuntosFormulario() {
   if (fotoPendiente) {
     adjuntoFotoUrl = URL.createObjectURL(fotoPendiente)
     const img = document.createElement('img')
-    img.className = 'miniatura'
+    img.className = 'creation-thumb'
     img.src = adjuntoFotoUrl
-    img.alt = 'Foto adjunta'
+    img.alt = 'Foto adjunta a la creación'
     adjuntosCreacionEl.append(img)
   }
   if (ubicacionPendiente) {
     const chip = document.createElement('span')
-    chip.className = 'chip-ubicacion'
+    chip.className = 'chip'
     chip.textContent = `📍 ${ubicacionPendiente.lat.toFixed(4)}, ${ubicacionPendiente.lon.toFixed(4)} (±${ubicacionPendiente.precision} m)`
     adjuntosCreacionEl.append(chip)
   }
 }
 
-function detenerMedidor() {
+function detenerMedidor(): void {
   cancelAnimationFrame(animacionNivel)
   animacionNivel = 0
   medidor?.cerrar()
   medidor = null
-  nivelAudioEl.classList.add('oculta')
+  nivelAudioEl.classList.add('is-hidden')
   nivelAudioBarraEl.style.width = '0%'
 }
 
-function iniciarMedidor() {
+function iniciarMedidor(): void {
   if (!streamActual) return
   detenerMedidor()
   medidor = crearMedidorDeNivel(streamActual)
-  nivelAudioEl.classList.remove('oculta')
+  nivelAudioEl.classList.remove('is-hidden')
   const paso = () => {
     if (!medidor) return
     nivelAudioBarraEl.style.width = `${Math.round(medidor.leer() * 100)}%`
@@ -518,27 +819,36 @@ function iniciarMedidor() {
   animacionNivel = requestAnimationFrame(paso)
 }
 
-async function iniciarStream() {
+async function iniciarStream(): Promise<void> {
   if (!mediaDisponible()) {
     setEstadoCamara('La cámara solo funciona en HTTPS o en localhost.')
     return
   }
   try {
-    streamActual = tipoMedio === 'video' ? await abrirFlujoConAudio(facingMode) : await abrirCamara(facingMode)
+    setEstadoCamara('Pidiendo permiso…')
+    const stream = tipoMedio === 'video' ? await abrirFlujoConAudio(facingMode) : await abrirCamara(facingMode)
+
+    // Si el usuario cerró el diálogo o cambió de pestaña mientras el permiso
+    // estaba pendiente, no dejamos la cámara encendida por detrás.
+    if (!dlgCamaraEl.open || document.hidden) {
+      detenerFlujo(stream)
+      return
+    }
+
+    detenerFlujo(streamActual)
+    streamActual = stream
     videoCamaraEl.srcObject = streamActual
-    videoCamaraEl.classList.toggle('espejo', facingMode === 'user') // la frontal se ve como espejo
+    videoCamaraEl.classList.toggle('is-mirror', facingMode === 'user')
     setEstadoCamara('')
     if (tipoMedio === 'video' && streamActual.getAudioTracks().length > 0) iniciarMedidor()
     else detenerMedidor()
-    // El botón de cambiar cámara solo aparece si hay más de una (típico en un celular).
-    btnCambiarCamaraEl.classList.toggle('oculta', (await contarCamaras()) < 2)
-  } catch (err) {
-    setEstadoCamara(describirErrorCamara(err))
+    btnCambiarCamaraEl.classList.toggle('is-hidden', (await contarCamaras()) < 2)
+  } catch (error) {
+    setEstadoCamara(describirErrorCamara(error))
   }
 }
 
-/** Apaga la cámara por completo: grabación, medidor, pistas y fuente del video. */
-function detenerCamara() {
+function detenerCamara(): void {
   detenerGrabacion()
   detenerMedidor()
   detenerFlujo(streamActual)
@@ -546,21 +856,21 @@ function detenerCamara() {
   videoCamaraEl.srcObject = null
 }
 
-/** Muestra los controles que corresponden al medio activo (Foto / Vídeo). */
-function aplicarModo(tipo: 'foto' | 'video') {
+function aplicarModo(tipo: 'foto' | 'video'): void {
   tipoMedio = tipo
-  tabFotoEl.classList.toggle('activo', tipo === 'foto')
-  tabVideoEl.classList.toggle('activo', tipo === 'video')
-  btnCapturarEl.classList.toggle('oculta', tipo === 'video')
-  controlesVideoEl.classList.toggle('oculta', tipo === 'foto')
-  if (tipo === 'foto') nivelAudioEl.classList.add('oculta')
+  tabFotoEl.classList.toggle('is-active', tipo === 'foto')
+  tabVideoEl.classList.toggle('is-active', tipo === 'video')
+  tabFotoEl.setAttribute('aria-selected', String(tipo === 'foto'))
+  tabVideoEl.setAttribute('aria-selected', String(tipo === 'video'))
+  btnCapturarEl.classList.toggle('is-hidden', tipo === 'video')
+  controlesVideoEl.classList.toggle('is-hidden', tipo === 'foto')
+  if (tipo === 'foto') nivelAudioEl.classList.add('is-hidden')
 }
 
-/** Cambia de Foto a Vídeo (y al revés) reabriendo el stream con el audio correcto. */
-async function cambiarMedio(tipo: 'foto' | 'video') {
+async function cambiarMedio(tipo: 'foto' | 'video'): Promise<void> {
   if (grabando || tipo === tipoMedio) return
   aplicarModo(tipo)
-  camaraPreviewEl.classList.add('oculta')
+  camaraPreviewEl.classList.add('is-hidden')
   detenerMedidor()
   detenerFlujo(streamActual)
   streamActual = null
@@ -568,44 +878,49 @@ async function cambiarMedio(tipo: 'foto' | 'video') {
   if (tipo === 'video') {
     setEstadoCamara(
       grabacionDisponible()
-        ? 'Listo para grabar. Pulsa ● Grabar.'
-        : 'Este navegador no puede grabar vídeo (sin MediaRecorder). Usa el modo Foto.'
+        ? `Listo para grabar. Máximo ${MAX_SEGUNDOS_VIDEO} s.`
+        : 'Este navegador no puede grabar video (sin MediaRecorder). Usa el modo Foto.',
     )
   }
 }
 
-function pintaTiempoRec() {
+function pintaTiempoRec(): void {
   const mm = String(Math.floor(segundosRec / 60)).padStart(2, '0')
   const ss = String(segundosRec % 60).padStart(2, '0')
   recTiempoEl.textContent = `${mm}:${ss}`
 }
 
-function iniciarGrabacion() {
+function iniciarGrabacion(): void {
   if (!streamActual || !grabacionDisponible()) return
-  grabadora = crearGrabadora(streamActual)
-  grabadora.iniciar()
-  grabando = true
-  segundosRec = 0
-  pintaTiempoRec()
-  recIndicadorEl.classList.remove('oculta')
-  btnGrabarEl.textContent = '■ Detener'
-  temporizadorRec = window.setInterval(() => {
-    segundosRec++
+  try {
+    grabadora = crearGrabadora(streamActual)
+    grabadora.iniciar()
+    grabando = true
+    segundosRec = 0
     pintaTiempoRec()
-  }, 1000)
+    recIndicadorEl.classList.remove('is-hidden')
+    btnGrabarEl.textContent = '■ Detener'
+    temporizadorRec = window.setInterval(() => {
+      segundosRec++
+      pintaTiempoRec()
+      if (segundosRec >= MAX_SEGUNDOS_VIDEO) void finalizarGrabacion()
+    }, 1000)
+  } catch (error) {
+    setEstadoCamara(`No se pudo iniciar la grabación: ${error instanceof Error ? error.message : 'error desconocido'}.`)
+  }
 }
 
-function detenerGrabacion() {
+function detenerGrabacion(): void {
   clearInterval(temporizadorRec)
   temporizadorRec = 0
   grabando = false
-  recIndicadorEl.classList.add('oculta')
+  recIndicadorEl.classList.add('is-hidden')
   btnGrabarEl.textContent = '● Grabar'
   grabadora?.destruir()
   grabadora = null
 }
 
-async function finalizarGrabacion() {
+async function finalizarGrabacion(): Promise<void> {
   if (!grabadora) return
   const clip = await grabadora.detener()
   detenerGrabacion()
@@ -613,37 +928,40 @@ async function finalizarGrabacion() {
     setEstadoCamara('La grabación quedó vacía. Intenta de nuevo.')
     return
   }
+  if (clip.size > MAX_BYTES_VIDEO) {
+    setEstadoCamara('El clip supera los 40 MB. Graba uno más corto para guardarlo.')
+    return
+  }
   if (previewUrl) URL.revokeObjectURL(previewUrl)
   previewUrl = URL.createObjectURL(clip)
   previewVideoEl.src = previewUrl
-  previewImgEl.classList.add('oculta')
-  previewVideoEl.classList.remove('oculta')
+  previewImgEl.classList.add('is-hidden')
+  previewVideoEl.classList.remove('is-hidden')
   capturaCamara = clip
-  camaraPreviewEl.classList.remove('oculta')
-  setEstadoCamara('Clip grabado. Ponle nombre y guárdalo.')
+  camaraPreviewEl.classList.remove('is-hidden')
+  setEstadoCamara(`Clip de ${segundosRec} s listo. Ponle nombre y guárdalo.`)
 }
 
-async function abrirCamaraVista(modo: 'adjuntar' | 'crear') {
+async function abrirCamaraVista(modo: 'adjuntar' | 'crear'): Promise<void> {
   modoEntrada = modo
   camaraTituloEl.textContent = modo === 'adjuntar' ? 'Tomar foto para la creación' : 'Cámara en vivo'
-  camaraPreviewDatosEl.classList.toggle('oculta', modo !== 'crear')
-  modoTabsEl.classList.toggle('oculta', modo === 'adjuntar') // al adjuntar solo aplica Foto
-  camaraPreviewEl.classList.add('oculta')
-  previewImgEl.classList.remove('oculta')
-  previewVideoEl.classList.add('oculta')
+  camaraPreviewDatosEl.classList.toggle('is-hidden', modo !== 'crear')
+  modoTabsEl.classList.toggle('is-hidden', modo === 'adjuntar')
+  camaraPreviewEl.classList.add('is-hidden')
+  previewImgEl.classList.remove('is-hidden')
+  previewVideoEl.classList.add('is-hidden')
   camaraNombreEl.value = ''
   capturaCamara = null
   ubicacionCamara = null
   aplicarModo(modo === 'adjuntar' ? 'foto' : tipoMedio)
   setEstadoCamara('')
 
-  // El permiso se consulta SIN aviso; la cámara se pide solo tras el clic en "Continuar".
   const estado = await estadoPermiso('camera')
   if (estado === 'denied') {
     permisoTituloEl.textContent = 'Cámara bloqueada'
     permisoTextoEl.textContent =
       'Bloqueaste el permiso de cámara. Habilítalo desde el candado de la barra de direcciones para volver a usarla.'
-    btnPermisoContinuarEl.classList.add('oculta')
+    btnPermisoContinuarEl.classList.add('is-hidden')
     btnPermisoCancelarEl.textContent = 'Entendido'
   } else {
     const esVideo = tipoMedio === 'video'
@@ -651,18 +969,13 @@ async function abrirCamaraVista(modo: 'adjuntar' | 'crear') {
     permisoTextoEl.textContent = esVideo
       ? 'El clip se queda en tu dispositivo (IndexedDB); no se envía a ningún servidor.'
       : 'La foto y la ubicación se quedan en tu dispositivo (IndexedDB); no se envían a ningún servidor.'
-    btnPermisoContinuarEl.classList.remove('oculta')
+    btnPermisoContinuarEl.classList.remove('is-hidden')
     btnPermisoCancelarEl.textContent = 'Ahora no'
   }
   dlgPermisoEl.showModal()
 }
 
-navCamaraEl.addEventListener('click', evento => {
-  evento.preventDefault()
-  void abrirCamaraVista('crear')
-})
 btnAbrirCamaraEl.addEventListener('click', () => void abrirCamaraVista('crear'))
-
 btnPermisoContinuarEl.addEventListener('click', async () => {
   dlgPermisoEl.close()
   if (!dlgCamaraEl.open) dlgCamaraEl.showModal()
@@ -670,8 +983,8 @@ btnPermisoContinuarEl.addEventListener('click', async () => {
   if (tipoMedio === 'video') {
     setEstadoCamara(
       grabacionDisponible()
-        ? 'Listo para grabar. Pulsa ● Grabar.'
-        : 'Este navegador no puede grabar vídeo (sin MediaRecorder). Usa el modo Foto.'
+        ? `Listo para grabar. Máximo ${MAX_SEGUNDOS_VIDEO} s.`
+        : 'Este navegador no puede grabar video (sin MediaRecorder). Usa el modo Foto.',
     )
   }
 })
@@ -681,13 +994,12 @@ btnCerrarCamaraEl.addEventListener('click', () => dlgCamaraEl.close())
 tabFotoEl.addEventListener('click', () => void cambiarMedio('foto'))
 tabVideoEl.addEventListener('click', () => void cambiarMedio('video'))
 
-// Al cerrar el diálogo —incluido con la tecla Esc— el hardware se libera siempre.
 dlgCamaraEl.addEventListener('close', () => {
   detenerCamara()
-  camaraPreviewEl.classList.add('oculta')
-  previewUbicacionEl.classList.add('oculta')
-  previewVideoEl.classList.add('oculta')
-  previewImgEl.classList.remove('oculta')
+  camaraPreviewEl.classList.add('is-hidden')
+  previewUbicacionEl.classList.add('is-hidden')
+  previewVideoEl.classList.add('is-hidden')
+  previewImgEl.classList.remove('is-hidden')
   if (previewUrl) {
     URL.revokeObjectURL(previewUrl)
     previewUrl = null
@@ -695,6 +1007,15 @@ dlgCamaraEl.addEventListener('close', () => {
   capturaCamara = null
   ubicacionCamara = null
   setEstadoCamara('')
+})
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) return
+  if (streamActual || grabando) {
+    detenerCamara()
+    if (dlgCamaraEl.open) dlgCamaraEl.close()
+    mostrarToast('La cámara se apagó al salir de la página. Vuelve a activarla cuando quieras.')
+  }
 })
 
 btnCapturarEl.addEventListener('click', async () => {
@@ -711,27 +1032,26 @@ btnCapturarEl.addEventListener('click', async () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl)
     previewUrl = URL.createObjectURL(blob)
     previewImgEl.src = previewUrl
-    previewVideoEl.classList.add('oculta')
-    previewImgEl.classList.remove('oculta')
+    previewVideoEl.classList.add('is-hidden')
+    previewImgEl.classList.remove('is-hidden')
     capturaCamara = blob
-    camaraPreviewEl.classList.remove('oculta')
+    camaraPreviewEl.classList.remove('is-hidden')
     setEstadoCamara('Foto capturada. Ponle nombre y guárdala.')
-  } catch (err) {
-    setEstadoCamara(describirErrorCamara(err))
+  } catch (error) {
+    setEstadoCamara(describirErrorCamara(error))
   }
 })
 
 btnGrabarEl.addEventListener('click', async () => {
   if (grabando) await finalizarGrabacion()
-  else if (!grabacionDisponible()) setEstadoCamara('Este navegador no puede grabar vídeo (sin MediaRecorder).')
+  else if (!grabacionDisponible()) setEstadoCamara('Este navegador no puede grabar video (sin MediaRecorder).')
   else iniciarGrabacion()
 })
 
-// Cambio frontal / trasera (móvil): reabre el stream con el otro facingMode.
 btnCambiarCamaraEl.addEventListener('click', async () => {
   if (grabando) return
   facingMode = facingMode === 'environment' ? 'user' : 'environment'
-  camaraPreviewEl.classList.add('oculta')
+  camaraPreviewEl.classList.add('is-hidden')
   detenerMedidor()
   detenerFlujo(streamActual)
   streamActual = null
@@ -740,19 +1060,19 @@ btnCambiarCamaraEl.addEventListener('click', async () => {
 
 btnUbicacionCamaraEl.addEventListener('click', async () => {
   try {
-    const ubic = await obtenerUbicacion()
+    const ubicacion = await obtenerUbicacion()
     if (modoEntrada === 'adjuntar') {
-      ubicacionPendiente = ubic
+      ubicacionPendiente = ubicacion
       pintaAdjuntosFormulario()
-      adjuntosEstadoEl.textContent = `Ubicación adjunta: ${ubic.lat.toFixed(4)}, ${ubic.lon.toFixed(4)} (±${ubic.precision} m).`
+      adjuntosEstadoEl.textContent = `Ubicación adjunta: ${ubicacion.lat.toFixed(4)}, ${ubicacion.lon.toFixed(4)} (±${ubicacion.precision} m).`
     } else {
-      ubicacionCamara = ubic
-      previewUbicacionEl.textContent = `📍 ${ubic.lat.toFixed(4)}, ${ubic.lon.toFixed(4)} (±${ubic.precision} m)`
-      previewUbicacionEl.classList.remove('oculta')
+      ubicacionCamara = ubicacion
+      previewUbicacionEl.textContent = `📍 ${ubicacion.lat.toFixed(4)}, ${ubicacion.lon.toFixed(4)} (±${ubicacion.precision} m)`
+      previewUbicacionEl.classList.remove('is-hidden')
     }
-    setEstadoCamara(`Ubicación: ${ubic.lat.toFixed(4)}, ${ubic.lon.toFixed(4)} (±${ubic.precision} m)`)
-  } catch (err) {
-    setEstadoCamara(describirErrorUbicacion(err))
+    setEstadoCamara(`Ubicación: ${ubicacion.lat.toFixed(4)}, ${ubicacion.lon.toFixed(4)} (±${ubicacion.precision} m)`)
+  } catch (error) {
+    setEstadoCamara(describirErrorUbicacion(error))
   }
 })
 
@@ -768,44 +1088,52 @@ btnGuardarCreacionEl.addEventListener('click', async () => {
     return
   }
   const esVideo = tipoMedio === 'video'
-  await guardarCreacion(db, {
-    id: crypto.randomUUID(),
-    nombre,
-    desafio: camaraDesafioEl.value,
-    fecha: new Date().toISOString(),
-    notaCifrada: null,
-    notaIv: null,
-    foto: esVideo ? null : capturaCamara,
-    ubicacion: ubicacionCamara,
-    video: esVideo ? capturaCamara : null,
-  })
-  camaraNombreEl.value = ''
-  dlgCamaraEl.close()
-  await refrescar()
+  try {
+    await guardarCreacion(db, {
+      id: crypto.randomUUID(),
+      nombre,
+      desafio: camaraDesafioEl.value,
+      fecha: new Date().toISOString(),
+      notaCifrada: null,
+      notaIv: null,
+      foto: esVideo ? null : capturaCamara,
+      ubicacion: ubicacionCamara,
+      video: esVideo ? capturaCamara : null,
+    })
+    camaraNombreEl.value = ''
+    dlgCamaraEl.close()
+    await refrescar()
+    mostrarToast('Creación guardada en tu dispositivo.')
+    ocultarAlerta()
+  } catch (error) {
+    mostrarAlerta(`No se pudo guardar la creación: ${error instanceof Error ? error.message : 'error desconocido'}.`)
+  }
 })
 
-/** Visor de una creación guardada: muestra la foto o reproduce el vídeo (object URL liberado al cerrar). */
-function abrirVisor(creacion: Creacion) {
+// ---------------------------------------------------------------------------
+// Visor de creaciones
+function abrirVisor(creacion: Creacion): void {
   const medio = creacion.video ?? creacion.foto
   if (!medio) return
   if (urlVisor) URL.revokeObjectURL(urlVisor)
   urlVisor = URL.createObjectURL(medio)
-  const esVideo = !!creacion.video
-  verVisorTituloEl.textContent = esVideo ? 'Vídeo guardado' : 'Foto guardada'
+  const esVideo = Boolean(creacion.video)
+  verVisorTituloEl.textContent = esVideo ? 'Video guardado' : 'Foto guardada'
   if (esVideo) {
     videoReproEl.src = urlVisor
-    videoReproEl.classList.remove('oculta')
-    imagenReproEl.classList.add('oculta')
+    videoReproEl.classList.remove('is-hidden')
+    imagenReproEl.classList.add('is-hidden')
     imagenReproEl.removeAttribute('src')
     void videoReproEl.play().catch(() => {})
   } else {
     imagenReproEl.src = urlVisor
-    imagenReproEl.classList.remove('oculta')
-    videoReproEl.classList.add('oculta')
+    imagenReproEl.classList.remove('is-hidden')
+    videoReproEl.classList.add('is-hidden')
     videoReproEl.removeAttribute('src')
   }
   dlgVerVideoEl.showModal()
 }
+
 btnCerrarVerVideoEl.addEventListener('click', () => dlgVerVideoEl.close())
 dlgVerVideoEl.addEventListener('close', () => {
   videoReproEl.pause()
@@ -823,28 +1151,133 @@ btnUbicacionCreacionEl.addEventListener('click', async () => {
     ubicacionPendiente = await obtenerUbicacion()
     pintaAdjuntosFormulario()
     adjuntosEstadoEl.textContent = `Ubicación adjunta: ${ubicacionPendiente.lat.toFixed(4)}, ${ubicacionPendiente.lon.toFixed(4)} (±${ubicacionPendiente.precision} m).`
-  } catch (err) {
-    adjuntosEstadoEl.textContent = describirErrorUbicacion(err)
+  } catch (error) {
+    adjuntosEstadoEl.textContent = describirErrorUbicacion(error)
   }
 })
 
-btnActivarCifradoEl.addEventListener('click', activarCifrado)
+btnActivarCifradoEl.addEventListener('click', () => void activarCifrado())
 
 // ---------------------------------------------------------------------------
-// Núcleo de visión: gestos → memes. El motor corre en el navegador (MediaPipe
-// WASM + MLP exportado desde Python) y cae a reglas si aún no hay modelo.
-const gestos = montarGestos()
-document.querySelector<HTMLAnchorElement>('#nav-gestos')!.addEventListener(
-  'click',
-  evento => {
-    evento.preventDefault()
-    void gestos.abrir()
-  },
-)
-
-async function iniciar() {
-  db = await abrirBaseDeDatos()
-  await refrescar()
+// Preparación offline
+async function actualizarEstadoOffline(): Promise<void> {
+  const estado = await estadoModelosOffline()
+  if (estado.listo) {
+    offlineEstadoEl.textContent = 'Modelos listos. El reconocimiento de gestos funciona sin conexión.'
+    btnPrepararOfflineEl.textContent = 'Disponible sin conexión'
+    btnPrepararOfflineEl.disabled = true
+  } else {
+    offlineEstadoEl.textContent = `Faltan ${2 - estado.tareas + (estado.wasm ? 0 : 1)} archivos de modelo para usar gestos sin conexión.`
+    btnPrepararOfflineEl.textContent = 'Preparar sin conexión'
+    btnPrepararOfflineEl.disabled = false
+  }
 }
 
-iniciar().catch((error) => console.error('Error al abrir IndexedDB:', error))
+btnPrepararOfflineEl.addEventListener('click', async () => {
+  btnPrepararOfflineEl.disabled = true
+  offlineProgresoEl.hidden = false
+  offlineProgresoEl.value = 0
+  offlineEstadoEl.textContent = 'Descargando modelos de visión…'
+  try {
+    const estado = await prepararModelosOffline((hechos, total, detalle) => {
+      offlineProgresoEl.max = total
+      offlineProgresoEl.value = hechos
+      const archivo = detalle.split('/').pop() ?? detalle
+      offlineEstadoEl.textContent = `Descargando ${hechos}/${total}: ${archivo}`
+    })
+    if (estado.listo) {
+      mostrarToast('Modelos listos para usar sin conexión.')
+    }
+  } catch (error) {
+    mostrarAlerta(`No se pudieron preparar los modelos: ${error instanceof Error ? error.message : 'error desconocido'}.`)
+  } finally {
+    offlineProgresoEl.hidden = true
+    await actualizarEstadoOffline()
+  }
+})
+
+// ---------------------------------------------------------------------------
+// Instalación, conexión y service worker
+window.addEventListener('beforeinstallprompt', evento => {
+  const eventoInstalable = evento as EventoInstalacion
+  eventoInstalable.preventDefault()
+  eventoInstalacion = eventoInstalable
+  pintarInstalacion()
+})
+
+window.addEventListener('appinstalled', () => {
+  eventoInstalacion = null
+  pintarInstalacion()
+  mostrarToast('Meme Vision quedó instalada. Ábrela desde su icono.')
+})
+
+btnInstalarEl.addEventListener('click', () => void pedirInstalacion())
+btnActualizarEl.addEventListener('click', async () => {
+  if (!actualizarSW) return
+  btnActualizarEl.disabled = true
+  try {
+    await actualizarSW(true)
+  } catch (error) {
+    btnActualizarEl.disabled = false
+    mostrarAlerta(`No se pudo actualizar la app: ${error instanceof Error ? error.message : 'error desconocido'}.`)
+  }
+})
+window.matchMedia('(display-mode: standalone)').addEventListener('change', pintarInstalacion)
+window.addEventListener('online', actualizarConexion)
+window.addEventListener('offline', actualizarConexion)
+
+actualizarSW = registerSW({
+  immediate: true,
+  onOfflineReady() {
+    mostrarToast('La app ya funciona sin conexión.')
+  },
+  onNeedRefresh() {
+    actualizacionDisponible = true
+    actualizarBotonActualizar()
+    mostrarToast('Hay una versión nueva disponible. Pulsa «Actualizar» cuando termines.')
+  },
+  onRegisteredSW(swUrl, registration) {
+    console.log('SW de Workbox registrado:', swUrl, registration)
+    if (!registration) return
+    const revisar = () => void registration.update()
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) revisar()
+    })
+    window.setInterval(revisar, 60 * 60 * 1000)
+  },
+  onRegisterError(error) {
+    console.error('Error al registrar el SW de Workbox:', error)
+    mostrarAlerta('No se pudo activar el modo sin conexión. La app sigue funcionando con conexión.')
+  },
+})
+
+// ---------------------------------------------------------------------------
+// Núcleo de visión: gestos → memes.
+const gestos = montarGestos()
+document.querySelectorAll<HTMLButtonElement>('[data-abrir-gestos]').forEach(boton => {
+  boton.addEventListener('click', () => void gestos.abrir())
+})
+
+async function iniciar(): Promise<void> {
+  actualizarConexion()
+  pintarInstalacion()
+  pintarGestos()
+  heroMemeEl.src = urlMeme('like', 0)
+  heroMemeEl.alt = 'Meme de ejemplo: pulgar arriba'
+  await actualizarEstadoOffline()
+
+  try {
+    db = await abrirBaseDeDatos()
+    db.onversionchange = () => db.close()
+    await refrescar()
+    try {
+      await navigator.storage?.persist?.()
+    } catch {
+      // Persistencia opcional: el navegador puede ignorarla.
+    }
+  } catch (error) {
+    mostrarAlerta(`No se pudo abrir el almacenamiento local: ${error instanceof Error ? error.message : 'error desconocido'}.`)
+  }
+}
+
+void iniciar()

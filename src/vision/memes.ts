@@ -24,20 +24,20 @@ for (const lista of porCarpeta.values()) lista.sort()
 
 const rotacion = new Map<string, number>()
 
-/** Devuelve la URL de un meme para el gesto; rota entre variantes si hay varias. */
-export function urlMeme(gesto: GestoId): string {
+/**
+ * Devuelve la URL de un meme para el gesto. Sin `indiceFijo` rota entre
+ * variantes; con `indiceFijo` devuelve una variante determinista (para el
+ * catálogo de la página, sin alterar la rotación del reconocimiento).
+ */
+export function urlMeme(gesto: GestoId, indiceFijo?: number): string {
   const carpeta = GESTOS[gesto].carpeta
   const lista = porCarpeta.get(carpeta) ?? porCarpeta.get('_sin_gesto') ?? []
   if (lista.length === 0) return ''
+  if (indiceFijo !== undefined) {
+    const indice = ((indiceFijo % lista.length) + lista.length) % lista.length
+    return lista[indice]
+  }
   const indice = (rotacion.get(carpeta) ?? 0) % lista.length
   rotacion.set(carpeta, indice + 1)
   return lista[indice]
-}
-
-/** Precarga las imágenes para que el primer cambio de gesto no parpadee. */
-export function precargarMemes(): void {
-  for (const url of Object.values(modulos)) {
-    const imagen = new Image()
-    imagen.src = url
-  }
 }

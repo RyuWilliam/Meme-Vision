@@ -88,6 +88,15 @@ describe('reglas geométricas', () => {
     expect(resultado.confianza).toBeGreaterThan(0.8)
   })
 
+  it('reconoce dislike con el gesto integrado', () => {
+    const resultado = clasificarReglas(entrada({ pulgar: true }), {
+      nombre: 'Thumb_Down',
+      confianza: 0.92,
+    })
+    expect(resultado.gesto).toBe('dislike')
+    expect(resultado.confianza).toBeGreaterThan(0.8)
+  })
+
   it('reconoce llamada', () => {
     const resultado = clasificarReglas(entrada({ pulgar: true, menique: true }))
     expect(resultado.gesto).toBe('llamada')

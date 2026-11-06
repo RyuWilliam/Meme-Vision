@@ -9,16 +9,14 @@ export default defineConfig({
       // El manifest ya existe en public/manifest.json — el plugin solo
       // genera el Service Worker, no el manifest.
       manifest: false,
-      registerType: 'autoUpdate',
+      // 'prompt': la app avisa cuando hay una versión nueva y el usuario decide
+      // cuándo recargar. Evita recargas a mitad de una captura o grabación.
+      registerType: 'prompt',
       injectRegister: false, // registramos nosotros mismos en main.ts
       workbox: {
         // La lista de precaché se genera a partir de dist/ DESPUÉS del build,
         // con los nombres de archivo reales (con hash incluido).
-        globPatterns: ['**/*.{html,js,css,png,json}'],
-        // Como en apps reales: el Service Worker nuevo toma el control de inmediato
-        // y reclama las pestañas abiertas. Sin esto queda "en espera" hasta cerrar
-        // TODAS las pestañas (o borrar la caché) y no se ven los cambios.
-        skipWaiting: true,
+        globPatterns: ['**/*.{html,js,css,png,json,woff2}'],
         clientsClaim: true,
         cleanupOutdatedCaches: true,
         runtimeCaching: [
@@ -33,15 +31,9 @@ export default defineConfig({
             },
           },
           {
-            // Futura API de memes/gestos -> NetworkFirst (fresco si hay red, respaldo si no).
-            urlPattern: /\/api\//,
-            handler: 'NetworkFirst',
-            options: { cacheName: 'api-memes' },
-          },
-          {
-            // El modelo entrenado puede cambiar al reentrenar: red primero y
-            // respaldo en caché si no hay conexión.
-            urlPattern: /\/modelos\/gestos_mlp\.json$/,
+            // Los modelos entrenados pueden cambiar al reentrenar: red primero
+            // y respaldo en caché si no hay conexión.
+            urlPattern: /\/modelos\/gestos(_mano)?_mlp\.json$/,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'modelo-gestos',
@@ -50,8 +42,8 @@ export default defineConfig({
             },
           },
           {
-            // Tareas de MediaPipe (.task): se cachean la primera vez y quedan
-            // disponibles sin conexión.
+            // Tareas de MediaPipe (.task): se cachean al preparar sin conexión
+            // o en el primer uso online.
             urlPattern: /\/modelos\//,
             handler: 'CacheFirst',
             options: {

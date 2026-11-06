@@ -63,15 +63,22 @@ export function clasificarReglas(
     return { gesto: 'llamada', confianza: 0.9 }
   }
 
-  // Like: primero el gesto integrado de MediaPipe (más robusto a la rotación).
+  // Like/Dislike: primero el gesto integrado de MediaPipe (más robusto a la
+  // rotación). Después, la geometría como respaldo.
   if (integrado?.nombre === 'Thumb_Up' && integrado.confianza > 0.5) {
     return { gesto: 'like', confianza: Math.max(0.7, integrado.confianza) }
+  }
+  if (integrado?.nombre === 'Thumb_Down' && integrado.confianza > 0.5) {
+    return { gesto: 'dislike', confianza: Math.max(0.7, integrado.confianza) }
   }
 
   if (ext.pulgar && !ext.indice && !ext.medio && !ext.anillo && !ext.menique) {
     const escala = distancia2(mano[0], mano[9]) || 1
     if (mano[4].y < mano[0].y - 0.15 * escala) {
       return { gesto: 'like', confianza: 0.78 }
+    }
+    if (mano[4].y > mano[0].y + 0.15 * escala) {
+      return { gesto: 'dislike', confianza: 0.78 }
     }
   }
 

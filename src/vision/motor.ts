@@ -1,8 +1,11 @@
 import { FaceLandmarker, FilesetResolver, GestureRecognizer } from '@mediapipe/tasks-vision'
 import type { Category } from '@mediapipe/tasks-vision'
 import { extraerCaracteristicas } from './caracteristicas.ts'
+import { extraerCaracteristicasMano } from './caracteristicas-mano.ts'
+import { combinarDeteccion } from './fusion.ts'
 import { cargarModelo, predecir } from './mlp.ts'
 import { clasificarReglas } from './reglas.ts'
+import { TAMANO_ENTRADA_MANO } from './tipos.ts'
 import type { DeteccionGesto, EntradaCuadro, GestoIntegrado, ModeloMlp } from './tipos.ts'
 
 export interface ResultadoCuadro {
@@ -17,17 +20,20 @@ const BASE = import.meta.env.BASE_URL
 export class MotorGestos {
   private readonly reconocedor: GestureRecognizer
   private readonly rostro: FaceLandmarker
-  private readonly modelo: ModeloMlp | null
+  private readonly modeloMano: ModeloMlp | null
+  private readonly modeloRostro: ModeloMlp | null
   private ultimoTimestamp = 0
 
   private constructor(
     reconocedor: GestureRecognizer,
     rostro: FaceLandmarker,
-    modelo: ModeloMlp | null,
+    modeloMano: ModeloMlp | null,
+    modeloRostro: ModeloMlp | null,
   ) {
     this.reconocedor = reconocedor
     this.rostro = rostro
-    this.modelo = modelo
+    this.modeloMano = modeloMano
+    this.modeloRostro = modeloRostro
   }
 
   static async crear(): Promise<MotorGestos> {
@@ -41,20 +47,26 @@ export class MotorGestos {
       tareas = await crearTareas(vision, 'CPU')
     }
 
-    const modelo = await cargarModelo(`${BASE}modelos/gestos_mlp.json`)
-    return new MotorGestos(tareas.reconocedor, tareas.rostro, modelo)
+    const [modeloMano, modeloRostro] = await Promise.all([
+      cargarModelo(`${BASE}modelos/gestos_mano_mlp.json`, TAMANO_ENTRADA_MANO),
+      cargarModelo(`${BASE}modelos/gestos_mlp.json`),
+    ])
+    return new MotorGestos(tareas.reconocedor, tareas.rostro, modeloMano, modeloRostro)
   }
 
   get modo(): 'mlp' | 'reglas' {
-    return this.modelo ? 'mlp' : 'reglas'
+    return this.modeloMano || this.modeloRostro ? 'mlp' : 'reglas'
   }
 
   get umbral(): number {
-    return this.modelo?.umbral ?? 0.6
+    return this.modeloMano?.umbral ?? this.modeloRostro?.umbral ?? 0.6
   }
 
   get detalleModelo(): string {
-    return this.modelo ? `MLP ${this.modelo.version}` : 'reglas (sin modelo entrenado)'
+    const partes: string[] = []
+    if (this.modeloMano) partes.push(`mano ${this.modeloMano.version}`)
+    if (this.modeloRostro) partes.push(`rostro ${this.modeloRostro.version}`)
+    return partes.length ? `MLP ${partes.join(' + ')}` : 'reglas (sin modelo entrenado)'
   }
 
   detectar(video: HTMLVideoElement, timestamp: number): ResultadoCuadro | null {
@@ -74,47 +86,39 @@ export class MotorGestos {
 
     const integrado = aGestoIntegrado(manos.gestures?.[0]?.[0])
     const entrada: EntradaCuadro = { mano, manoEtiqueta, rostro, blendshapes }
-
     const reglas = clasificarReglas(entrada, integrado)
 
-    let deteccion: DeteccionGesto
-    if (this.modelo) {
-      let mlp: ReturnType<typeof predecir> | null = null
+    let mlpMano: ReturnType<typeof predecir> | null = null
+    if (this.modeloMano) {
       try {
-        mlp = predecir(
-          this.modelo,
-          extraerCaracteristicas(entrada, this.modelo.categorias_rostro),
+        mlpMano = predecir(this.modeloMano, extraerCaracteristicasMano(entrada))
+      } catch (error) {
+        console.warn('Fallo la inferencia del MLP de mano; se usan reglas.', error)
+      }
+    }
+
+    let mlpRostro: ReturnType<typeof predecir> | null = null
+    if (this.modeloRostro) {
+      try {
+        mlpRostro = predecir(
+          this.modeloRostro,
+          extraerCaracteristicas(entrada, this.modeloRostro.categorias_rostro),
         )
       } catch (error) {
-        console.warn('Fallo la inferencia del MLP; se usan reglas.', error)
+        console.warn('Fallo la inferencia del MLP de rostro; se usan reglas.', error)
       }
-
-      if (mlp && mlp.confianza >= this.modelo.umbral) {
-        deteccion = {
-          gesto: mlp.gesto,
-          confianza: mlp.confianza,
-          origen: 'mlp',
-          mano: !!mano,
-          rostro: !!rostro,
-          integrado,
-        }
-      } else if (reglas.gesto !== 'ninguno') {
-        deteccion = { ...reglas, origen: 'reglas', mano: !!mano, rostro: !!rostro, integrado }
-      } else if (mlp) {
-        deteccion = {
-          gesto: mlp.gesto,
-          confianza: mlp.confianza,
-          origen: 'mlp',
-          mano: !!mano,
-          rostro: !!rostro,
-          integrado,
-        }
-      } else {
-        deteccion = { ...reglas, origen: 'reglas', mano: !!mano, rostro: !!rostro, integrado }
-      }
-    } else {
-      deteccion = { ...reglas, origen: 'reglas', mano: !!mano, rostro: !!rostro, integrado }
     }
+
+    const deteccion = combinarDeteccion({
+      reglas,
+      mlpMano,
+      mlpRostro,
+      umbralMano: this.modeloMano?.umbral ?? 1,
+      umbralRostro: this.modeloRostro?.umbral ?? 1,
+      mano: !!mano,
+      rostro: !!rostro,
+      integrado,
+    })
 
     return { deteccion, entrada }
   }

@@ -33,4 +33,8 @@ describe('MLP', () => {
   it('valida el tamaño de entrada del modelo real', () => {
     expect(validarModelo(modelo)).toBe(false)
   })
+
+  it('acepta el tamaño de entrada cuando coincide con el esperado', () => {
+    expect(validarModelo(modelo, 2)).toBe(true)
+  })
 })

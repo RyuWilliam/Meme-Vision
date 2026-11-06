@@ -1,5 +1,5 @@
 import type { GestoId, ModeloMlp } from './tipos.ts'
-import { TAMANO_ENTRADA } from './tipos.ts'
+import { GESTOS, TAMANO_ENTRADA } from './tipos.ts'
 
 export interface PrediccionMlp {
   gesto: GestoId
@@ -9,23 +9,26 @@ export interface PrediccionMlp {
 
 export async function cargarModelo(
   url = '/modelos/gestos_mlp.json',
+  tamanoEntrada = TAMANO_ENTRADA,
 ): Promise<ModeloMlp | null> {
   try {
     const respuesta = await fetch(url, { cache: 'no-store' })
     if (!respuesta.ok) return null
     const modelo = (await respuesta.json()) as ModeloMlp
-    return validarModelo(modelo) ? modelo : null
+    return validarModelo(modelo, tamanoEntrada) ? modelo : null
   } catch {
     return null
   }
 }
 
-export function validarModelo(modelo: ModeloMlp): boolean {
-  if (!modelo || modelo.tamano_entrada !== TAMANO_ENTRADA) return false
+export function validarModelo(modelo: ModeloMlp, tamanoEntrada = TAMANO_ENTRADA): boolean {
+  if (!modelo || modelo.tamano_entrada !== tamanoEntrada) return false
   if (!Array.isArray(modelo.gestos) || modelo.gestos.length === 0) return false
+  if (!modelo.gestos.every(gesto => gesto in GESTOS)) return false
   if (!Array.isArray(modelo.capas) || modelo.capas.length === 0) return false
-  if (modelo.escalador.media.length !== TAMANO_ENTRADA) return false
-  if (modelo.escalador.desviacion.length !== TAMANO_ENTRADA) return false
+  if (!modelo.escalador) return false
+  if (modelo.escalador.media.length !== tamanoEntrada) return false
+  if (modelo.escalador.desviacion.length !== tamanoEntrada) return false
 
   const ultima = modelo.capas[modelo.capas.length - 1]
   if (ultima.sesgos.length !== modelo.gestos.length) return false

@@ -42,12 +42,23 @@ export function abrirFlujoConAudio(facingMode: 'user' | 'environment' = 'environ
 
 /** Dibuja el fotograma actual en un <canvas> y lo exporta a Blob JPEG (máx. 640 px). */
 export function capturarFoto(video: HTMLVideoElement, anchoMax = 640): Promise<Blob> {
+  if (!video.videoWidth || !video.videoHeight) {
+    return Promise.reject(new Error('La cámara todavía no tiene un fotograma disponible.'))
+  }
   const escala = Math.min(1, anchoMax / video.videoWidth)
   const canvas = document.createElement('canvas')
   canvas.width = Math.round(video.videoWidth * escala)
   canvas.height = Math.round(video.videoHeight * escala)
-  canvas.getContext('2d')!.drawImage(video, 0, 0, canvas.width, canvas.height)
-  return new Promise(resolve => canvas.toBlob(blob => resolve(blob!), 'image/jpeg', 0.8))
+  const contexto = canvas.getContext('2d')
+  if (!contexto) return Promise.reject(new Error('No se pudo preparar el lienzo de captura.'))
+  contexto.drawImage(video, 0, 0, canvas.width, canvas.height)
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      blob => (blob ? resolve(blob) : reject(new Error('El navegador no pudo exportar la foto.'))),
+      'image/jpeg',
+      0.8,
+    )
+  })
 }
 
 /** Detiene CADA pista: sin esto el LED queda encendido y nadie más usa el hardware. */
