@@ -1,7 +1,6 @@
 import { distancia2, distanciaASegmento, extensiones } from './mano.ts'
 import type { EntradaCuadro, GestoId, GestoIntegrado } from './tipos.ts'
 import { ROSTRO } from './caracteristicas.ts'
-
 export interface ResultadoReglas {
   gesto: GestoId
   confianza: number
@@ -23,38 +22,68 @@ export function clasificarReglas(
 
   const ext = extensiones(mano)
   const soloIndice = ext.indice && !ext.medio && !ext.anillo && !ext.menique
+  // Mano plana o semiplana: índice y medio extendidos, los demás pueden variar.
+  const manoAbierta = ext.indice && ext.medio
   const rostro = entrada.rostro
 
-  if (rostro && rostro.length > ROSTRO.mandibulaDerecha && soloIndice) {
-    const boca = {
-      x: (rostro[ROSTRO.labioSuperior].x + rostro[ROSTRO.labioInferior].x) / 2,
-      y: (rostro[ROSTRO.labioSuperior].y + rostro[ROSTRO.labioInferior].y) / 2,
-      z: 0,
-    }
+  if (rostro && rostro.length > ROSTRO.mandibulaDerecha) {
     const escala =
       distancia2(rostro[ROSTRO.frente], rostro[ROSTRO.menton]) || 1
     const indice = mano[8]
-    const aBoca = distancia2(indice, boca) / escala
-    const aMandibula =
-      Math.min(
-        distanciaASegmento(indice, rostro[ROSTRO.mandibulaIzquierda], rostro[ROSTRO.menton]),
-        distanciaASegmento(indice, rostro[ROSTRO.mandibulaDerecha], rostro[ROSTRO.menton]),
-      ) / escala
-    const debajoDeLaBoca = indice.y > boca.y + 0.05 * escala
+    const medio = mano[12]
 
-    // Silencio: el índice está prácticamente sobre los labios.
-    if (aBoca < 0.18) {
-      return { gesto: 'silencio', confianza: 0.8 + 0.16 * (1 - Math.min(1, aBoca / 0.18)) }
+    // Saludo militar: la mano (plana) va a la sien. Se exige que las puntas
+    // del índice y del medio estén cerca de una sien y por encima de la línea
+    // de los ojos, para no confundirlo con silencio o mewing.
+    if (manoAbierta && !ext.anillo && !ext.menique) {
+      const sienes = [rostro[ROSTRO.sienDerecha], rostro[ROSTRO.sienIzquierda]]
+      const lineaOjos =
+        (rostro[ROSTRO.ojoDerechoArriba].y + rostro[ROSTRO.ojoIzquierdoArriba].y) / 2
+      const puntas = [indice, medio]
+      let mejorSien = Number.POSITIVE_INFINITY
+      for (const sien of sienes) {
+        // Punta más cercana a esa sien; la otra debe acompañar.
+        const a = distancia2(puntas[0], sien) / escala
+        const b = distancia2(puntas[1], sien) / escala
+        mejorSien = Math.min(mejorSien, Math.max(a, b))
+      }
+      const arribaDeLosOjos = indice.y < lineaOjos + 0.04 * escala
+      if (mejorSien < 0.34 && arribaDeLosOjos && medio.y < lineaOjos) {
+        return {
+          gesto: 'saludo',
+          confianza: 0.78 + 0.18 * (1 - Math.min(1, mejorSien / 0.34)),
+        }
+      }
     }
 
-    // Mewing: índice tocando la mandíbula, por debajo de la boca.
-    if (debajoDeLaBoca && aMandibula < 0.30) {
-      return { gesto: 'mewing', confianza: 0.76 + 0.18 * (1 - Math.min(1, aMandibula / 0.30)) }
-    }
+    if (soloIndice) {
+      const boca = {
+        x: (rostro[ROSTRO.labioSuperior].x + rostro[ROSTRO.labioInferior].x) / 2,
+        y: (rostro[ROSTRO.labioSuperior].y + rostro[ROSTRO.labioInferior].y) / 2,
+        z: 0,
+      }
+      const aBoca = distancia2(indice, boca) / escala
+      const aMandibula =
+        Math.min(
+          distanciaASegmento(indice, rostro[ROSTRO.mandibulaIzquierda], rostro[ROSTRO.menton]),
+          distanciaASegmento(indice, rostro[ROSTRO.mandibulaDerecha], rostro[ROSTRO.menton]),
+        ) / escala
+      const debajoDeLaBoca = indice.y > boca.y + 0.05 * escala
 
-    // Silencio algo menos preciso (índice cerca de la boca).
-    if (aBoca < 0.34) {
-      return { gesto: 'silencio', confianza: 0.7 + 0.1 * (1 - Math.min(1, aBoca / 0.34)) }
+      // Silencio: el índice está prácticamente sobre los labios.
+      if (aBoca < 0.18) {
+        return { gesto: 'silencio', confianza: 0.8 + 0.16 * (1 - Math.min(1, aBoca / 0.18)) }
+      }
+
+      // Mewing: índice tocando la mandíbula, por debajo de la boca.
+      if (debajoDeLaBoca && aMandibula < 0.30) {
+        return { gesto: 'mewing', confianza: 0.76 + 0.18 * (1 - Math.min(1, aMandibula / 0.30)) }
+      }
+
+      // Silencio algo menos preciso (índice cerca de la boca).
+      if (aBoca < 0.34) {
+        return { gesto: 'silencio', confianza: 0.7 + 0.1 * (1 - Math.min(1, aBoca / 0.34)) }
+      }
     }
   }
 

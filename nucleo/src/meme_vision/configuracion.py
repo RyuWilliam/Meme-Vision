@@ -8,6 +8,8 @@ GESTOS = ("like", "llamada", "silencio", "mewing", "ninguno")
 # landmarks. `like` y `dislike` se resuelven con las reglas de MediaPipe
 # (Thumb_Up / Thumb_Down) porque dependen de la orientación; `silencio` y
 # `mewing` necesitan el rostro y los resuelve el motor de reglas.
+# (`saludo` también usa rostro + mano, pero solo existe en el motor de reglas
+# de la PWA: no es una clase del dataset de entrenamiento.)
 GESTOS_MANO = (
     "llamada",
     "ok",

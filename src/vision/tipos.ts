@@ -10,6 +10,7 @@ export type GestoId =
   | 'llamada'
   | 'silencio'
   | 'mewing'
+  | 'saludo'
   | 'ok'
   | 'peace'
   | 'rock'
@@ -31,6 +32,7 @@ export const GESTOS: Record<GestoId, GestoConfig> = {
   llamada: { etiqueta: 'Llamada', carpeta: 'llamada', emoji: '📞' },
   silencio: { etiqueta: 'Silencio', carpeta: 'silencio', emoji: '🤫' },
   mewing: { etiqueta: 'Mewing', carpeta: 'mewing', emoji: '😼' },
+  saludo: { etiqueta: 'Saludo militar', carpeta: 'saludo', emoji: '🫡' },
   ok: { etiqueta: 'OK', carpeta: 'ok', emoji: '👌' },
   peace: { etiqueta: 'Paz', carpeta: 'peace', emoji: '✌️' },
   rock: { etiqueta: 'Rock', carpeta: 'rock', emoji: '🤘' },
@@ -53,8 +55,8 @@ export const ETIQUETAS_ENTRENAMIENTO: GestoId[] = [
 
 /**
  * Clases del modelo de mano (69 features). `like` y `dislike` se resuelven con
- * las reglas de MediaPipe; `silencio` y `mewing` necesitan el rostro y también
- * los resuelve el motor de reglas.
+ * las reglas de MediaPipe; `silencio`, `mewing` y `saludo` necesitan el rostro
+ * y también los resuelve el motor de reglas.
  */
 export const GESTOS_MANO: GestoId[] = [
   'llamada',

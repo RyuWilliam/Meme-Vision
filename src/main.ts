@@ -1,4 +1,4 @@
-import './style.css'
+﻿import './style.css'
 import { registerSW } from 'virtual:pwa-register'
 import {
   abrirBaseDeDatos,
@@ -98,12 +98,12 @@ app.innerHTML = `
       <div class="hero-copy">
         <p class="kicker"><span aria-hidden="true"></span> Visión artificial en tu navegador</p>
         <h1 id="hero-title">Haz un gesto.<br />Te devolvemos un meme.</h1>
-        <p class="lede">Meme Vision reconoce 12 gestos con la cámara y los convierte en memes. El video se queda en tu dispositivo: sin cuentas, sin servidores, sin subidas.</p>
+        <p class="lede">Meme Vision reconoce 13 gestos con la cámara y los convierte en memes. El video se queda en tu dispositivo: sin cuentas, sin servidores, sin subidas.</p>
         <div class="hero-actions">
           <button id="btn-abrir-camara" class="button button-primary" type="button">${icon('camera')} Abrir cámara</button>
           <button class="button button-secondary" type="button" data-abrir-gestos>${icon('hand')} Probar gestos</button>
         </div>
-        <p class="hero-facts"><span>12 gestos</span><span>Modelo local</span><span>Sin cuenta</span></p>
+        <p class="hero-facts"><span>13 gestos</span><span>Modelo local</span><span>Sin cuenta</span></p>
       </div>
       <div class="hero-stage">
         <div class="viewfinder">
@@ -148,7 +148,7 @@ app.innerHTML = `
       <div class="section-head section-head-split">
         <div>
           <p class="kicker">Catálogo real</p>
-          <h2 id="gestos-title">Doce gestos, doce memes.</h2>
+          <h2 id="gestos-title">Trece gestos, trece memes.</h2>
           <p class="section-lede">Este es el catálogo que reconoce el modelo actual. Toca uno para abrir la vista de gestos.</p>
         </div>
         <button class="button button-secondary" type="button" data-abrir-gestos>${icon('hand')} Probar ahora</button>

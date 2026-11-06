@@ -147,6 +147,71 @@ Verifica en Chrome:
 3. Network → Offline: recarga el shell.
 4. Prepara los modelos y prueba los gestos sin red.
 
+## Gestos y de dónde sale cada uno
+
+| Gesto | Cómo se reconoce | Usa rostro | Usa mano | Modelo entrenado |
+| --- | --- | --- | --- | --- |
+| like / dislike | Gesto integrado de MediaPipe (`Thumb_Up`/`Thumb_Down`) + geometría de respaldo | No | Sí | No |
+| llamada | Regla geométrica (pulgar + meñique) | No | Sí | No |
+| silencio | Regla geométrica mano ↔ boca | Sí | Sí | No |
+| mewing | Regla geométrica mano ↔ mandíbula | Sí | Sí | No |
+| saludo militar | Regla geométrica mano ↔ sien | Sí | Sí | No |
+| ok, peace, rock, fist, palm, stop, one | MLP de mano (69 features) | **No** | Sí | Sí |
+| ninguno | Fallback del motor | — | — | — |
+
+Los dos detectores (mano y rostro) corren en cada fotograma porque MediaPipe los
+entrega juntos, pero **cada gesto se decide con la fuente que le corresponde**.
+`fusion.ts` fija la prioridad: reglas de rostro → like/dislike/llamada →
+MLP de mano → MLP de rostro → `ninguno`.
+
+## Cómo cambiar o agregar una imagen de meme
+
+Cada gesto tiene una carpeta en `src/assets/memes/<gesto>/`:
+
+```
+src/assets/memes/
+  like/like_01.png
+  saludo/saludo_01.png
+  ok/ok_01.png
+  ...
+  _sin_gesto/esperando.png
+```
+
+**Reglas:**
+
+1. Formato **PNG**.
+2. Máximo **512×512 px** y menos de **200 KB**.
+3. El nombre debe ser `<gesto>_<variante>.png`, sin espacios. Ejemplos:
+   `like_01.png`, `like_02.png`, `saludo_02.png`.
+4. Puedes poner varias variantes del mismo gesto: la app rota entre ellas.
+5. **No hay que tocar código ni `vite.config.ts`**: Vite procesa la carpeta, le
+   pone hash a la imagen y el Service Worker la incluye en el precaché.
+
+**Reemplazar una imagen:** sobrescribe el archivo con el mismo nombre
+(`like_01.png`) o agrega una variante nueva. Vuelve a compilar:
+
+```bash
+npm run build
+npm run preview
+```
+
+> Si tienes la app abierta en el navegador, pulsa **Actualizar** cuando aparezca,
+> porque el Service Worker habrá detectado la versión nueva.
+
+**Agregar un gesto nuevo que solo use la mano** (por ejemplo `thumbs_middle`):
+
+1. Añade la clave en `GestoId` y en `GESTOS` (`src/vision/tipos.ts`).
+2. Crea la carpeta y la imagen: `src/assets/memes/<gesto>/<gesto>_01.png`.
+3. Si el gesto debe salir del MLP, agrégalo a `GESTOS_MANO` en
+   `src/vision/tipos.ts` y en `nucleo/src/meme_vision/configuracion.py`, y
+   reentrena (ver `nucleo/README.md`). Si es una regla geométrica, añádela en
+   `src/vision/reglas.ts` y su test en `src/vision/reglas.test.ts`.
+
+**Agregar un gesto que use cara + mano** (como `silencio`, `mewing` o
+`saludo`): no necesita reentrenar. Se implementa como regla geométrica en
+`src/vision/reglas.ts` usando landmarks de `ROSTRO` y de la mano, y se agrega a
+la prioridad de `src/vision/fusion.ts`.
+
 ## Modelos
 
 Los modelos de MediaPipe están en `public/modelos/`:
@@ -160,8 +225,8 @@ Para reentrenar, consulta `nucleo/README.md`.
 
 ## Estado actual y límites
 
-- El catálogo incluye 12 gestos: like, llamada, silencio, mewing, ok, paz,
-  rock, puño, palma, stop, uno y dislike.
+- El catálogo incluye 13 gestos: like, llamada, silencio, mewing, saludo
+  militar, ok, paz, rock, puño, palma, stop, uno y dislike.
 - El reconocimiento de gestos necesita los modelos de MediaPipe. El shell de la
   app funciona offline; el reconocimiento offline requiere preparar los modelos.
 - No hay notificaciones push, sincronización con servidor, cuentas ni desafíos:

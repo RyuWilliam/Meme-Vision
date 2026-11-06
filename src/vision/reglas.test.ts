@@ -13,6 +13,7 @@ interface OpcionesMano {
   anillo?: boolean
   menique?: boolean
   indicePos?: [number, number]
+  medioPos?: [number, number]
 }
 
 function mano(opciones: OpcionesMano): NormalizedLandmark[] {
@@ -55,6 +56,13 @@ function mano(opciones: OpcionesMano): NormalizedLandmark[] {
     m[7] = p(mcp.x + (2 * (tx - mcp.x)) / 3, mcp.y + (2 * (ty - mcp.y)) / 3)
     m[8] = p(tx, ty)
   }
+  if (opciones.medioPos) {
+    const mcp = m[9]
+    const [tx, ty] = opciones.medioPos
+    m[10] = p(mcp.x + (tx - mcp.x) / 3, mcp.y + (ty - mcp.y) / 3)
+    m[11] = p(mcp.x + (2 * (tx - mcp.x)) / 3, mcp.y + (2 * (ty - mcp.y)) / 3)
+    m[12] = p(tx, ty)
+  }
   return m
 }
 
@@ -66,6 +74,10 @@ function rostro(): NormalizedLandmark[] {
   puntos[ROSTRO.menton] = p(0.5, 0.8)
   puntos[ROSTRO.mandibulaIzquierda] = p(0.35, 0.6)
   puntos[ROSTRO.mandibulaDerecha] = p(0.65, 0.6)
+  puntos[ROSTRO.sienDerecha] = p(0.32, 0.35)
+  puntos[ROSTRO.sienIzquierda] = p(0.68, 0.35)
+  puntos[ROSTRO.ojoDerechoArriba] = p(0.4, 0.4)
+  puntos[ROSTRO.ojoIzquierdoArriba] = p(0.6, 0.4)
   return puntos
 }
 
@@ -114,6 +126,43 @@ describe('reglas geométricas', () => {
       entrada({ indice: true, indicePos: [0.42, 0.68] }),
     )
     expect(resultado.gesto).toBe('mewing')
+  })
+
+  it('reconoce saludo militar con mano plana en la sien', () => {
+    const resultado = clasificarReglas(
+      entrada({
+        indice: true,
+        medio: true,
+        indicePos: [0.33, 0.34],
+        medioPos: [0.38, 0.3],
+      }),
+    )
+    expect(resultado.gesto).toBe('saludo')
+    expect(resultado.confianza).toBeGreaterThan(0.7)
+  })
+
+  it('no confunde el saludo con silencio ni mewing', () => {
+    const silencio = clasificarReglas(
+      entrada({ indice: true, indicePos: [0.5, 0.555] }),
+    )
+    const mewing = clasificarReglas(
+      entrada({ indice: true, indicePos: [0.42, 0.68] }),
+    )
+    expect(silencio.gesto).toBe('silencio')
+    expect(mewing.gesto).toBe('mewing')
+  })
+
+  it('no inventa saludo con la mano abierta lejos de la cara', () => {
+    const resultado = clasificarReglas(
+      entrada({
+        pulgar: true,
+        indice: true,
+        medio: true,
+        indicePos: [0.5, 0.9],
+        medioPos: [0.55, 0.9],
+      }),
+    )
+    expect(resultado.gesto).toBe('ninguno')
   })
 
   it('no inventa gestos con la mano abierta', () => {
