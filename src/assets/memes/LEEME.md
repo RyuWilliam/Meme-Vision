@@ -16,6 +16,7 @@ fist/          puño cerrado           → fist_01.png
 palm/          palma abierta          → palm_01.png
 stop/          mano de stop           → stop_01.jpg
 one/           índice arriba          → one_01.jpg
+pistola/       pulgar + índice        → pistola_01.jpg
 dislike/       pulgar abajo           → dislike_01.jpg
 _sin_gesto/    placeholder            → esperando.png
 ```

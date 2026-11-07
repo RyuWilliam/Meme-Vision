@@ -156,7 +156,7 @@ Verifica en Chrome:
 | silencio | Regla geométrica mano ↔ boca | Sí | Sí | No |
 | mewing | Regla geométrica mano ↔ mandíbula | Sí | Sí | No |
 | saludo militar | Regla geométrica mano ↔ sien | Sí | Sí | No |
-| ok, peace, rock, fist, palm, stop, one | MLP de mano (69 features) | **No** | Sí | Sí |
+| ok, peace, rock, fist, palm, stop, one, pistola | MLP de mano (69 features) | **No** | Sí | Sí |
 | ninguno | Fallback del motor | — | — | — |
 
 Los dos detectores (mano y rostro) corren en cada fotograma porque MediaPipe los
@@ -225,8 +225,8 @@ Para reentrenar, consulta `nucleo/README.md`.
 
 ## Estado actual y límites
 
-- El catálogo incluye 13 gestos: like, llamada, silencio, mewing, saludo
-  militar, ok, paz, rock, puño, palma, stop, uno y dislike.
+- El catálogo incluye 14 gestos: like, llamada, silencio, mewing, saludo
+  militar, ok, paz, rock, puño, palma, stop, uno, pistola y dislike.
 - El reconocimiento de gestos necesita los modelos de MediaPipe. El shell de la
   app funciona offline; el reconocimiento offline requiere preparar los modelos.
 - No hay notificaciones push, sincronización con servidor, cuentas ni desafíos:

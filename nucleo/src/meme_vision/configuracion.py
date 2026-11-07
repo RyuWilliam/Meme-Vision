@@ -19,6 +19,7 @@ GESTOS_MANO = (
     "palm",
     "stop",
     "one",
+    "pistola",
     "ninguno",
 )
 

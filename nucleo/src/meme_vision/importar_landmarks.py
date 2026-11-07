@@ -42,11 +42,11 @@ NOMBRE_CSV = "HandLandmarks.csv"
 
 # Índice del CSV → etiqueta de la app. Se excluyen:
 #   1 dislike, 3 like  -> dependen de la orientación y los resuelven las reglas
-#   4 mute             -> se confunde con `one` sin el rostro
 #   11 stop_inverted   -> se confunde con `stop`
 MAPA_ETIQUETAS = {
     0: "llamada",
     2: "fist",
+    4: "pistola",
     5: "ok",
     6: "one",
     7: "palm",

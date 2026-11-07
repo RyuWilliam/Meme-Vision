@@ -19,6 +19,7 @@ export type GestoId =
   | 'stop'
   | 'one'
   | 'dislike'
+  | 'pistola'
   | 'ninguno'
 
 export interface GestoConfig {
@@ -40,6 +41,7 @@ export const GESTOS: Record<GestoId, GestoConfig> = {
   palm: { etiqueta: 'Palma', carpeta: 'palm', emoji: '🖐️' },
   stop: { etiqueta: 'Stop', carpeta: 'stop', emoji: '✋' },
   one: { etiqueta: 'Uno', carpeta: 'one', emoji: '☝️' },
+  pistola: { etiqueta: 'Pistola', carpeta: 'pistola', emoji: '🔫' },
   dislike: { etiqueta: 'Dislike', carpeta: 'dislike', emoji: '👎' },
   ninguno: { etiqueta: 'Sin gesto', carpeta: '_sin_gesto', emoji: '👀' },
 }
@@ -67,6 +69,7 @@ export const GESTOS_MANO: GestoId[] = [
   'palm',
   'stop',
   'one',
+  'pistola',
   'ninguno',
 ]
 
