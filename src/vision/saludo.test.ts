@@ -85,4 +85,35 @@ describe('saludo militar: cobertura tras el arreglo', () => {
     const r = clasificarReglas(evaluar([0.5, 0.55], [0.55, 0.55]))
     expect(r.gesto).not.toBe('saludo')
   })
+
+  it('rechaza TAPARSE EL SOL: palma plana delante de la frente', () => {
+    // El caso reportado: la mano queda tapando la frente, como si te hicieras
+    // sombra para los ojos. Pasa el umbral de distancia a la sien (0.255),
+    // así que sin la condición lateral se aceptaba como saludo.
+    const r = clasificarReglas(evaluar([0.44, 0.32], [0.47, 0.38]))
+    expect(r.gesto).not.toBe('saludo')
+  })
+
+  it('rechaza la palma centrada en la frente', () => {
+    const r = clasificarReglas(evaluar([0.48, 0.30], [0.55, 0.31]))
+    expect(r.gesto).not.toBe('saludo')
+  })
+
+  it('rechaza la mano que cruza la cara al otro lado', () => {
+    // Índice a la izquierda del centro y medio a la derecha: tapando la cara.
+    const r = clasificarReglas(evaluar([0.38, 0.32], [0.62, 0.33]))
+    expect(r.gesto).not.toBe('saludo')
+  })
+
+  it('acepta el saludo desde media frente hacia la oreja', () => {
+    // Media frente: punto medio entre el centro de la cara (0.50) y la sien
+    // (0.32), es decir x≈0.41. El umbral 0.5 lateral equivale justo a eso.
+    const r = clasificarReglas(evaluar([0.38, 0.34], [0.42, 0.30]))
+    expect(r.gesto).toBe('saludo')
+  })
+
+  it('acepta el saludo pegado a la oreja', () => {
+    const r = clasificarReglas(evaluar([0.29, 0.34], [0.34, 0.30]))
+    expect(r.gesto).toBe('saludo')
+  })
 })

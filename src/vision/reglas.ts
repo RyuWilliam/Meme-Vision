@@ -56,12 +56,32 @@ export function clasificarReglas(
         mejorSien = Math.min(mejorSien, Math.max(a, b))
       }
       const arribaDeLosOjos = indice.y < lineaOjos + 0.04 * escala
+      // Condición lateral: la mano tiene que ir HACIA LA OREJA, no quedarse
+      // centrada en la frente. Sin esto, taparse el sol con la palma delante
+      // de la frente también entraba: la sien queda lo bastante cerca en
+      // distancia euclídea aunque la mano esté en el centro de la cara.
+      //
+      // Se mide qué tan lejos del centro de la cara está cada punta, en
+      // unidades de media anchura de cara (centro → sien). 0 es la nariz y 1
+      // la sien. Un saludo real ronda 0.7–0.8; una palma al centro, 0.
+      const centroX =
+        (rostro[ROSTRO.sienDerecha].x + rostro[ROSTRO.sienIzquierda].x) / 2
+      const medioAncho =
+        Math.abs(rostro[ROSTRO.sienIzquierda].x - rostro[ROSTRO.sienDerecha].x) / 2 || 1
+      const lateral =
+        ((Math.abs(indice.x - centroX) + Math.abs(medio.x - centroX)) / 2) / medioAncho
+      // Las dos puntas deben estar del mismo lado de la cara: si una cruza al
+      // otro lado, la mano está tapando la cara, no saludando.
+      const mismoLado = (indice.x - centroX) * (medio.x - centroX) > 0
+      // 0.5 = al menos a mitad de camino entre el centro de la frente y la
+      // oreja. Así el gesto empieza a contar desde media frente hacia afuera.
+      const haciaLaOreja = mismoLado && lateral >= 0.5
       // 0.26 de la altura de la cara desde la sien. Antes el umbral era 0.34,
       // que en la práctica aceptaba cualquier palma abierta delante de la
       // frente (una palma centrada da ~0.31). Un saludo real queda en ~0.13,
       // así que 0.26 deja margen para la mano un poco separada sin falsos
       // positivos de palma abierta.
-      if (mejorSien < 0.26 && arribaDeLosOjos && medio.y < lineaOjos) {
+      if (mejorSien < 0.26 && arribaDeLosOjos && medio.y < lineaOjos && haciaLaOreja) {
         return {
           gesto: 'saludo',
           confianza: 0.78 + 0.18 * (1 - Math.min(1, mejorSien / 0.34)),

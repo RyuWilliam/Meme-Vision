@@ -174,15 +174,21 @@ con una referencia facial. Para que se detecte:
 1. **Mano plana**, con al menos tres dedos extendidos (índice, medio y, si se
    puede, anillo o meñique). Una "V" con solo dos dedos **no** cuenta: eso es
    `peace`.
-2. **Puntas del índice y el medio cerca de una sien**, a menos de un cuarto de la
+2. **Hacia la oreja, no en el centro de la frente**. La mano debe quedar desde
+   media frente hacia afuera, con las puntas del índice y el medio apuntando al
+   lado de la cabeza. Si la pones centrada delante de la frente no se detecta:
+   eso parece que te estás tapando el sol.
+3. **Puntas del índice y el medio cerca de una sien**, a menos de un cuarto de la
    altura de tu cara. Si alejas la mano, no se detecta.
-3. **Por encima de la línea de los ojos** y con la cara bien encuadrada. Si el
+4. **Por encima de la línea de los ojos** y con la cara bien encuadrada. Si el
    rostro no se detecta, la regla no se evalúa.
-4. **Mantén la posición** un instante: el estabilizador exige varios fotogramas
+5. **Las dos puntas del mismo lado**: si una cruza al otro lado de la cara, la
+   mano está tapando, no saludando.
+6. **Mantén la posición** un instante: el estabilizador exige varios fotogramas
    seguidos antes de cambiar el meme.
 
-Las tres condiciones de posición se miden con los landmarks de la sien y del ojo,
-así que la mano tiene que estar **de verdad junto a la cabeza**, no al lado de la
+Las condiciones de posición se miden con los landmarks de la sien, del ojo y del
+centro de la cara, así que la mano tiene que estar **de verdad junto a la cabeza**, no al lado de la
 cara ni delante de la frente.
 
 ## Cómo cambiar o agregar una imagen de meme
