@@ -1,7 +1,7 @@
 [project]
 name = "meme-vision-nucleo"
 version = "0.1.0"
-description = "Entrenamiento del clasificador de gestos de MemeVision"
+description = "Entrenamiento del clasificador de gestos de gestIA"
 requires-python = ">=3.10"
 
 [tool.pytest.ini_options]

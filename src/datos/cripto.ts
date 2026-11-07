@@ -1,5 +1,5 @@
 // cripto.ts — Web Crypto API: hashes, derivación de claves y cifrado.
-// Sesión 22 (IndexedDB y Web Crypto API) aplicada a MemeVision.
+// Sesión 22 (IndexedDB y Web Crypto API) aplicada a gestIA.
 // Solo funciona en HTTPS o localhost.
 
 /** Calcula el hash SHA-256 de un texto y lo devuelve en hexadecimal. */

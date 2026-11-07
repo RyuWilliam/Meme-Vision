@@ -1,4 +1,4 @@
-// db.ts — IndexedDB de MemeVision: las creaciones del usuario.
+// db.ts — IndexedDB de gestIA: las creaciones del usuario.
 // Sesión 22: esquema versionado con migración, CRUD, consultas con cursor y
 // nota privada cifrada (acompaña a cripto.ts).
 

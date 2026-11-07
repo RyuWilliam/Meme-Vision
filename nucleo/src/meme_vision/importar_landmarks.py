@@ -1,4 +1,4 @@
-"""Importa landmarks públicos de HaGRID al formato que entrena MemeVision.
+"""Importa landmarks públicos de HaGRID al formato que entrena gestIA.
 
 Fuente: `HandLandmarks.csv` de Shadowfax221/HandGesture2Emoji, generado con
 MediaPipe sobre HaGRID (12 clases, 1.000 muestras por clase). El CSV no tiene

@@ -1,4 +1,6 @@
-﻿# Meme Vision
+﻿# gestIA
+
+> Intelligence meets gesture.
 
 PWA local que reconoce gestos con la cámara y los convierte en memes. Todo el
 procesamiento ocurre en el navegador: el video, las fotos, los clips y las notas

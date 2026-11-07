@@ -147,7 +147,7 @@ def _matriz_confusion(y: np.ndarray, prediccion: np.ndarray, ruta: Path) -> list
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Entrena el clasificador de mano de MemeVision.")
+    parser = argparse.ArgumentParser(description="Entrena el clasificador de mano de gestIA.")
     parser.add_argument("--datos", type=Path, default=RUTA_DATOS, help="Carpeta con los .jsonl")
     parser.add_argument("--salida", type=Path, default=RUTA_MODELO_MANO_WEB)
     parser.add_argument("--aumento", type=int, default=1, help="Variantes sintéticas por muestra")

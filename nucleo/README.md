@@ -1,4 +1,4 @@
-# Núcleo Python — MemeVision
+﻿# Núcleo Python — gestIA
 
 Este paquete **no corre la app**: entrena el clasificador de gestos y exporta un
 JSON pequeño que la PWA ejecuta en el navegador con MediaPipe WASM. Así la app

@@ -118,7 +118,7 @@ def _matriz_confusion(y: np.ndarray, prediccion: np.ndarray, ruta: Path) -> list
     eje.set_yticklabels(etiquetas)
     eje.set_xlabel("Predicción")
     eje.set_ylabel("Real")
-    eje.set_title("Matriz de confusión — MemeVision")
+    eje.set_title("Matriz de confusión — gestIA")
     for i in range(matriz.shape[0]):
         for j in range(matriz.shape[1]):
             eje.text(j, i, str(matriz[i, j]), ha="center", va="center", fontsize=10)
@@ -131,7 +131,7 @@ def _matriz_confusion(y: np.ndarray, prediccion: np.ndarray, ruta: Path) -> list
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Entrena el clasificador de gestos de MemeVision.")
+    parser = argparse.ArgumentParser(description="Entrena el clasificador de gestos de gestIA.")
     parser.add_argument("--datos", type=Path, default=RUTA_DATOS, help="Carpeta con los .jsonl")
     parser.add_argument("--salida", type=Path, default=RUTA_MODELO_WEB, help="JSON para la PWA")
     parser.add_argument("--aumento", type=int, default=3, help="Variantes sintéticas por muestra")
