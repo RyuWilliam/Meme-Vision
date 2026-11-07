@@ -1213,13 +1213,34 @@ window.addEventListener('appinstalled', () => {
 
 btnInstalarEl.addEventListener('click', () => void pedirInstalacion())
 btnActualizarEl.addEventListener('click', async () => {
-  if (!actualizarSW) return
+  if (!actualizarSW) {
+    mostrarAlerta('El service worker todavía no está listo. Recarga la página e intenta de nuevo.')
+    return
+  }
   btnActualizarEl.disabled = true
+  btnActualizarEl.textContent = 'Actualizando…'
   try {
     await actualizarSW(true)
+    // Si el SW nuevo no llegó a activarse, la página no se recarga: en ese caso
+    // no hay que dejarse el botón "Actualizando…" para siempre.
+    window.setTimeout(async () => {
+      if (!btnActualizarEl.disabled) return
+      const registro = await navigator.serviceWorker?.getRegistration()
+      const hayPendiente = Boolean(registro?.waiting ?? registro?.installing)
+      btnActualizarEl.disabled = false
+      btnActualizarEl.textContent = 'Actualizar'
+      if (!hayPendiente) {
+        actualizacionDisponible = false
+        actualizarBotonActualizar()
+        mostrarToast('Ya tienes la última versión instalada.')
+      } else {
+        mostrarAlerta('La actualización no se pudo aplicar. Cierra todas las pestañas de la app y vuelve a abrirla.')
+      }
+    }, 3000)
   } catch (error) {
-    btnActualizarEl.disabled = false
     mostrarAlerta(`No se pudo actualizar la app: ${error instanceof Error ? error.message : 'error desconocido'}.`)
+    btnActualizarEl.disabled = false
+    btnActualizarEl.textContent = 'Actualizar'
   }
 })
 window.matchMedia('(display-mode: standalone)').addEventListener('change', pintarInstalacion)
@@ -1239,11 +1260,19 @@ actualizarSW = registerSW({
   onRegisteredSW(swUrl, registration) {
     console.log('SW de Workbox registrado:', swUrl, registration)
     if (!registration) return
-    const revisar = () => void registration.update()
+    // Revisar al recuperar el foco y cada 15 min. El SW compara su propio
+    // archivo con el servidor, así que con /sw.js servido como no-cache la
+    // detección es inmediata tras desplegar.
+    const revisar = () => {
+      void registration.update().catch(() => {
+        // Sin red o servidor caído: se reintenta en la próxima revisión.
+      })
+    }
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) revisar()
     })
-    window.setInterval(revisar, 60 * 60 * 1000)
+    window.addEventListener('focus', revisar)
+    window.setInterval(revisar, 15 * 60 * 1000)
   },
   onRegisterError(error) {
     console.error('Error al registrar el SW de Workbox:', error)
