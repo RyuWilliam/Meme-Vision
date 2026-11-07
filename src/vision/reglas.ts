@@ -32,10 +32,18 @@ export function clasificarReglas(
     const indice = mano[8]
     const medio = mano[12]
 
-    // Saludo militar: la mano (plana) va a la sien. Se exige que las puntas
-    // del índice y del medio estén cerca de una sien y por encima de la línea
-    // de los ojos, para no confundirlo con silencio o mewing.
-    if (manoAbierta && !ext.anillo && !ext.menique) {
+    // Saludo militar: la mano va a la sien. Se pide que índice y medio estén
+    // extendidos y que las puntas queden cerca de una sien y por encima de la
+    // línea de los ojos, para no confundirlo con silencio o mewing.
+    //
+    // Antes esta condición exigía además anillo y meñique CERRADOS, que es
+    // exactamente el gesto de paz (V). Un saludo militar real lleva la mano
+    // plana, así que nunca entraba: la única forma de activarlo era hacer una
+    // "V" en la sien. Ahora se pide lo contrario: que al menos uno de los otros
+    // dos dedos acompañe. Así la "V" de dos dedos queda descartada y la mano
+    // plana (tres o cuatro dedos) sí se reconoce.
+    const manoPlana = ext.anillo || ext.menique
+    if (manoAbierta && manoPlana) {
       const sienes = [rostro[ROSTRO.sienDerecha], rostro[ROSTRO.sienIzquierda]]
       const lineaOjos =
         (rostro[ROSTRO.ojoDerechoArriba].y + rostro[ROSTRO.ojoIzquierdoArriba].y) / 2
@@ -48,7 +56,12 @@ export function clasificarReglas(
         mejorSien = Math.min(mejorSien, Math.max(a, b))
       }
       const arribaDeLosOjos = indice.y < lineaOjos + 0.04 * escala
-      if (mejorSien < 0.34 && arribaDeLosOjos && medio.y < lineaOjos) {
+      // 0.26 de la altura de la cara desde la sien. Antes el umbral era 0.34,
+      // que en la práctica aceptaba cualquier palma abierta delante de la
+      // frente (una palma centrada da ~0.31). Un saludo real queda en ~0.13,
+      // así que 0.26 deja margen para la mano un poco separada sin falsos
+      // positivos de palma abierta.
+      if (mejorSien < 0.26 && arribaDeLosOjos && medio.y < lineaOjos) {
         return {
           gesto: 'saludo',
           confianza: 0.78 + 0.18 * (1 - Math.min(1, mejorSien / 0.34)),
