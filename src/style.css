@@ -1382,6 +1382,7 @@ textarea:focus-visible {
 }
 
 .gesture-meme-frame {
+  position: relative;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -1391,7 +1392,15 @@ textarea:focus-visible {
   background: var(--teal);
 }
 
+/*
+ * La imagen se posiciona en absoluto para que su altura quede ligada al marco.
+ * Con `height: 100%` dentro de un contenedor con `aspect-ratio`, la imagen
+ * resolvía su altura intrínseca (345 px) y `overflow: hidden` la recortaba en
+ * pantallas donde el marco es más bajo que ancho.
+ */
 .gesture-meme-frame img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -1673,7 +1682,7 @@ textarea:focus-visible {
 
   .gesture-meme-frame {
     aspect-ratio: 16 / 9;
-    max-height: 28vh;
+    max-height: 34vh;
   }
 
   .toast {
