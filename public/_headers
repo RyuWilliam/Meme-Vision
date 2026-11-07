@@ -1,0 +1,36 @@
+# Cabeceras para Cloudflare Pages.
+# Este archivo se copia tal cual desde public/ hasta dist/ en cada build.
+
+# El Service Worker debe revalidarse SIEMPRE. Su nombre es fijo (/sw.js), así
+# que si el CDN lo cachea, el navegador nunca ve la versión nueva y la app se
+# queda atrapada en la versión anterior sin mostrar el aviso de actualización.
+/sw.js
+  Cache-Control: no-cache
+  Content-Type: application/javascript; charset=utf-8
+
+# El manifest también tiene nombre fijo.
+/manifest.json
+  Cache-Control: no-cache
+  Content-Type: application/manifest+json; charset=utf-8
+
+# El HTML no lleva hash en el nombre.
+/index.html
+  Cache-Control: no-cache
+
+# La raíz sirve el mismo index.html.
+/
+  Cache-Control: no-cache
+
+# Assets con hash en el nombre: si cambia el contenido, cambia la URL, así que
+# se pueden cachear de forma agresiva sin riesgo de servir algo viejo.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Los modelos pueden cambiar al reentrenar y no llevan hash: se revalidan.
+/modelos/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Cabeceras básicas de seguridad para todos los documentos.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
