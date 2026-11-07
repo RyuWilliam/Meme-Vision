@@ -10,6 +10,10 @@ export const ROSTRO = {
   menton: 152,
   mandibulaIzquierda: 172,
   mandibulaDerecha: 397,
+  sienDerecha: 127,
+  sienIzquierda: 356,
+  ojoDerechoArriba: 159,
+  ojoIzquierdoArriba: 386,
 } as const
 
 /**

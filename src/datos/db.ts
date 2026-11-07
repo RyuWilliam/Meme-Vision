@@ -54,6 +54,8 @@ export function abrirBaseDeDatos(): Promise<IDBDatabase> {
 
     peticion.onsuccess = event => resolve((event.target as IDBOpenDBRequest).result)
     peticion.onerror = event => reject((event.target as IDBOpenDBRequest).error)
+    peticion.onblocked = () =>
+      reject(new Error('Otra pestaña está usando una versión anterior de la base de datos. Cierra las demás pestañas e intenta de nuevo.'))
   })
 }
 
@@ -144,7 +146,8 @@ export function obtenerConfig<T>(db: IDBDatabase, clave: string): Promise<T | un
   return new Promise((resolve, reject) => {
     const tx = db.transaction('config', 'readonly')
     const peticion = tx.objectStore('config').get(clave)
-    peticion.onsuccess = () => resolve(peticion.result ? (peticion.result.valor as T) : undefined)
+    peticion.onsuccess = () =>
+      resolve(peticion.result === undefined ? undefined : (peticion.result.valor as T))
     peticion.onerror = () => reject(peticion.error)
   })
 }
@@ -180,5 +183,8 @@ export async function guardarCreacionConNota(
 
 /** Descifra la nota privada de una creación. */
 export function leerNotaPrivada(clave: CryptoKey, registro: Creacion): Promise<string> {
-  return descifrarTexto(clave, { cifrado: registro.notaCifrada!, iv: registro.notaIv! })
+  if (!registro.notaCifrada || !registro.notaIv) {
+    return Promise.reject(new Error('Esta creación no tiene una nota cifrada válida.'))
+  }
+  return descifrarTexto(clave, { cifrado: registro.notaCifrada, iv: registro.notaIv })
 }

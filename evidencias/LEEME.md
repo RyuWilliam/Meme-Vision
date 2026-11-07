@@ -1,4 +1,10 @@
-# Evidencias — MemeVision · Guías PWA (Sesiones 17 a 22)
+# Evidencias — MemeVision · Guías PWA
+
+> **Estado final (noviembre 2026):** la UI fue rediseñada y el Service Worker
+> pasó a Workbox. Las capturas de las sesiones 17–21 documentan el recorrido
+> histórico con el SW manual (`meme-vision-v2`); el estado actual usa
+> `workbox-precache-v2-*`. Para la verificación final, usa el `README.md`
+> (build + preview, instalabilidad, offline del shell y preparación de modelos).
 
 Capturas generadas ejecutando la app real en un servidor local (http://localhost:5173).
 Las sesiones 17-21 llevan un aviso pequeño con datos reales del navegador (Service Worker,
@@ -13,3 +19,5 @@ que verías allí.
 - `sesion-21-enrutado.png` — enrutado por tipo de recurso (íconos → Cache First, /api/ → Network First, externo → Network Only, resto → SWR) con peticiones servidas por el SW.
 - `sesion-22-creaciones-cifrado.png` — la sección «Mis creaciones» con una creación guardada en IndexedDB y el cifrado activo; la nota privada queda guardada cifrada (se lee solo al pulsar «Ver nota»). El detalle de la verificación está en `../auditoria/verificacion-s22.txt`.
 - `sesion-22-nota-descifrada.png` — tras recargar la página e ingresar la misma contraseña, la nota privada se descifra correctamente.
+- `sesion-25-gestos-like.png` y `sesion-25-gestos-offline.png` — vista «Gestos en vivo» con el motor de reglas y la app en modo offline (ver `LEEME-sesion-25.md`).
+- `LEEME-sesion-26-gestos-extra.md` — modelo de mano para el catálogo ampliado, datos públicos, métricas y comandos de reproducción.

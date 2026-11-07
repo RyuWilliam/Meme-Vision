@@ -1,6 +1,6 @@
-﻿import { abrirCamara, contarCamaras, describirErrorCamara, detenerFlujo } from '../dispositivo.ts'
+﻿import { abrirCamara, contarCamaras, describirErrorCamara, detenerFlujo, estadoPermiso } from '../dispositivo.ts'
 import { Estabilizador } from './estabilizador.ts'
-import { precargarMemes, urlMeme } from './memes.ts'
+import { urlMeme } from './memes.ts'
 import { MotorGestos } from './motor.ts'
 import { GESTOS } from './tipos.ts'
 import type { DeteccionGesto, EntradaCuadro, GestoId } from './tipos.ts'
@@ -34,6 +34,7 @@ export function montarGestos(): ControlGestos {
   const btnIniciar = document.querySelector<HTMLButtonElement>('#btn-iniciar-gestos')!
   const btnCambiar = document.querySelector<HTMLButtonElement>('#btn-cambiar-gestos')!
   const btnDebug = document.querySelector<HTMLButtonElement>('#btn-debug-gestos')!
+  const placeholder = document.querySelector<HTMLDivElement>('#gestos-placeholder')!
   const ctx = lienzo.getContext('2d')!
 
   let stream: MediaStream | null = null
@@ -46,7 +47,6 @@ export function montarGestos(): ControlGestos {
   let iniciando = false
   let estabilizador = new Estabilizador()
 
-  precargarMemes()
   meme.src = urlMeme('ninguno')
   etiquetaEl.dataset.gesto = 'ninguno'
   btnDebug.setAttribute('aria-pressed', 'false')
@@ -54,8 +54,17 @@ export function montarGestos(): ControlGestos {
   async function abrir(): Promise<void> {
     if (dlg.open) return
     dlg.showModal()
-    if (!stream || !motor) await iniciarCamara()
-    else iniciarBucle()
+    if (stream && motor) {
+      placeholder.classList.add('is-hidden')
+      btnIniciar.textContent = 'Cámara activa'
+      btnIniciar.disabled = true
+      iniciarBucle()
+      return
+    }
+    placeholder.classList.remove('is-hidden')
+    estadoEl.textContent = stream
+      ? 'Pulsa «Activar cámara» para cargar los modelos de visión.'
+      : 'Pulsa «Activar cámara» cuando quieras empezar. La cámara no se abre sola.'
   }
 
   async function iniciarCamara(): Promise<void> {
@@ -63,50 +72,71 @@ export function montarGestos(): ControlGestos {
     iniciando = true
     btnIniciar.disabled = true
     try {
+      const permiso = await estadoPermiso('camera')
+      if (permiso === 'denied') {
+        estadoEl.textContent =
+          'Bloqueaste el permiso de cámara. Habilítalo desde el candado de la barra de direcciones y vuelve a intentarlo.'
+        return
+      }
+
       if (!stream) {
         if (!navigator.mediaDevices?.getUserMedia) {
           estadoEl.textContent = 'La cámara solo funciona en HTTPS o en localhost.'
           return
         }
         estadoEl.textContent = 'Pidiendo permiso de cámara…'
-        stream = await abrirCamara(facing)
+        const nuevoStream = await abrirCamara(facing)
+        if (!dlg.open || document.hidden) {
+          detenerFlujo(nuevoStream)
+          return
+        }
+        stream = nuevoStream
         video.srcObject = stream
-        marco.classList.toggle('espejo', facing === 'user')
+        placeholder.classList.add('is-hidden')
+        marco.classList.toggle('is-mirror', facing === 'user')
         await video.play().catch(() => {})
         await esperarMetadatos()
         lienzo.width = video.videoWidth
         lienzo.height = video.videoHeight
         ajustarLienzo()
-        btnCambiar.classList.toggle('oculta', (await contarCamaras()) < 2)
+        btnCambiar.classList.toggle('is-hidden', (await contarCamaras()) < 2)
       }
 
       if (!motor) {
         estadoEl.textContent = 'Cargando modelos de visión…'
+        btnIniciar.textContent = 'Cargando…'
         try {
           motor = await MotorGestos.crear()
           estabilizador = new Estabilizador({
-            confianzaMinima: Math.min(0.6, motor.umbral),
+            confianzaMinima: Math.min(0.5, motor.umbral),
           })
           motorEl.textContent = `Motor: ${motor.detalleModelo}`
           estadoEl.textContent =
             motor.modo === 'mlp'
-              ? 'Modelo entrenado cargado. Haz uno de los 4 gestos.'
+              ? 'Modelos entrenados cargados. Haz uno de los gestos.'
               : 'Motor de reglas listo. Cuando entrenes el MLP, se usará automáticamente.'
         } catch (error) {
           console.error('No se pudieron cargar los modelos de MediaPipe:', error)
+          // Si no hay modelos, no hay razón para dejar la cámara encendida.
+          detenerCamara()
           estadoEl.textContent =
-            'No se pudieron cargar los modelos. Revisa la conexión y vuelve a intentar.'
+            'No se pudieron cargar los modelos. Revisa la conexión o prepara los modelos sin conexión desde la página principal.'
           return
         }
       }
 
+      if (!dlg.open || document.hidden) {
+        detenerCamara()
+        return
+      }
+      btnIniciar.textContent = 'Cámara activa'
       iniciarBucle()
     } catch (error) {
       estadoEl.textContent = describirErrorCamara(error)
       detenerCamara()
     } finally {
       iniciando = false
-      btnIniciar.disabled = false
+      btnIniciar.disabled = Boolean(stream && motor)
     }
   }
 
@@ -132,8 +162,20 @@ export function montarGestos(): ControlGestos {
 
   function esperarMetadatos(): Promise<void> {
     if (video.readyState >= 1 && video.videoWidth > 0) return Promise.resolve()
-    return new Promise(resolve => {
-      video.addEventListener('loadedmetadata', () => resolve(), { once: true })
+    return new Promise((resolve, reject) => {
+      const temporizador = window.setTimeout(() => {
+        limpiar()
+        reject(new Error('La cámara no entregó metadatos a tiempo.'))
+      }, 5000)
+      const alCargar = () => {
+        limpiar()
+        resolve()
+      }
+      const limpiar = () => {
+        window.clearTimeout(temporizador)
+        video.removeEventListener('loadedmetadata', alCargar)
+      }
+      video.addEventListener('loadedmetadata', alCargar, { once: true })
     })
   }
 
@@ -168,8 +210,9 @@ export function montarGestos(): ControlGestos {
   function aplicarGesto(gesto: GestoId): void {
     const config = GESTOS[gesto]
     const url = urlMeme(gesto)
-    if (url && meme.src !== url) {
+    if (url && meme.getAttribute('src') !== url) {
       meme.src = url
+      meme.alt = `Meme del gesto ${config.etiqueta}`
       meme.classList.remove('entra')
       void meme.offsetWidth
       meme.classList.add('entra')
@@ -258,7 +301,9 @@ export function montarGestos(): ControlGestos {
     etiquetaEl.textContent = 'Esperando gesto…'
     etiquetaEl.dataset.gesto = 'ninguno'
     confianzaEl.style.width = '0%'
-    motorEl.textContent = 'Motor: —'
+    btnIniciar.textContent = 'Activar cámara'
+    btnIniciar.disabled = false
+    placeholder.classList.remove('is-hidden')
   }
 
   btnCerrar.addEventListener('click', () => dlg.close())
@@ -281,6 +326,12 @@ export function montarGestos(): ControlGestos {
     if (dlg.open) dlg.close()
     motor?.cerrar()
     motor = null
+  })
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden || !stream) return
+    detenerCamara()
+    estadoEl.textContent =
+      'La cámara se apagó al salir de la página. Pulsa «Activar cámara» para volver.'
   })
 
   return { abrir }

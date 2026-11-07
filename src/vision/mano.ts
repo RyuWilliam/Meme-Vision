@@ -83,6 +83,42 @@ export function normalizarMano(mano: Punto[], etiqueta: string | null): number[]
   return salida
 }
 
+/**
+ * Igual que `normalizarMano`, pero además gira la mano para que el nudillo del
+ * índice (5) quede vertical. Es la canonicalización que usa el CSV de HaGRID,
+ * así el modelo de mano ve lo mismo entrenando que en vivo.
+ */
+export function normalizarManoCanonica(
+  mano: Punto[],
+  etiqueta: string | null,
+): number[] {
+  const muneca = mano[0]
+  const dx = mano[5].x - muneca.x
+  const dy = mano[5].y - muneca.y
+  const angulo = Math.atan2(dy, dx) + Math.PI / 2
+  const coseno = Math.cos(angulo)
+  const seno = Math.sin(angulo)
+  const esIzquierda = etiqueta === 'Left'
+
+  const relativos = Array.from({ length: 21 }, (_, i) => {
+    const x = mano[i].x - muneca.x
+    const y = mano[i].y - muneca.y
+    return {
+      x: x * coseno + y * seno,
+      y: -x * seno + y * coseno,
+      z: (mano[i].z ?? 0) - (muneca.z ?? 0),
+    }
+  })
+  const escala = Math.hypot(relativos[9].x, relativos[9].y, relativos[9].z) || 1
+
+  const salida: number[] = []
+  for (const punto of relativos) {
+    const x = punto.x / escala
+    salida.push(esIzquierda ? -x : x, punto.y / escala, punto.z / escala)
+  }
+  return salida
+}
+
 /** Distancia de un punto al segmento ab (en 2D). */
 export function distanciaASegmento(punto: Punto, a: Punto, b: Punto): number {
   const vx = b.x - a.x

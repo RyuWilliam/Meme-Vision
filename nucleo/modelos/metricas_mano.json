@@ -1,0 +1,208 @@
+{
+  "exactitud": 0.9536507936507936,
+  "macro_f1": 0.9604128358470915,
+  "f1_ponderado": 0.9531173580024281,
+  "umbral": 0.7600000000000005,
+  "f1_validacion": 0.9542515128959982,
+  "por_clase": {
+    "llamada": {
+      "precision": 0.9802631578947368,
+      "recall": 0.9933333333333333,
+      "f1-score": 0.9867549668874173,
+      "support": 150.0
+    },
+    "ok": {
+      "precision": 0.9545454545454546,
+      "recall": 0.98,
+      "f1-score": 0.9671052631578947,
+      "support": 150.0
+    },
+    "peace": {
+      "precision": 0.9545454545454546,
+      "recall": 0.98,
+      "f1-score": 0.9671052631578947,
+      "support": 150.0
+    },
+    "rock": {
+      "precision": 0.9423076923076923,
+      "recall": 0.98,
+      "f1-score": 0.9607843137254902,
+      "support": 150.0
+    },
+    "fist": {
+      "precision": 0.9607843137254902,
+      "recall": 0.98,
+      "f1-score": 0.9702970297029703,
+      "support": 150.0
+    },
+    "palm": {
+      "precision": 0.9801324503311258,
+      "recall": 0.9866666666666667,
+      "f1-score": 0.9833887043189369,
+      "support": 150.0
+    },
+    "stop": {
+      "precision": 0.9419354838709677,
+      "recall": 0.9733333333333334,
+      "f1-score": 0.9573770491803278,
+      "support": 150.0
+    },
+    "one": {
+      "precision": 0.9177215189873418,
+      "recall": 0.9666666666666667,
+      "f1-score": 0.9415584415584416,
+      "support": 150.0
+    },
+    "ninguno": {
+      "precision": 0.9532163742690059,
+      "recall": 0.8693333333333333,
+      "f1-score": 0.9093444909344491,
+      "support": 375.0
+    },
+    "accuracy": 0.9536507936507936,
+    "macro avg": {
+      "precision": 0.9539391000530298,
+      "recall": 0.9677037037037037,
+      "f1-score": 0.9604128358470915,
+      "support": 1575.0
+    },
+    "weighted avg": {
+      "precision": 0.953835853512455,
+      "recall": 0.9536507936507936,
+      "f1-score": 0.9531173580024281,
+      "support": 1575.0
+    }
+  },
+  "matriz_confusion": [
+    [
+      149,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1
+    ],
+    [
+      0,
+      147,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      2
+    ],
+    [
+      0,
+      0,
+      147,
+      0,
+      0,
+      0,
+      0,
+      2,
+      1
+    ],
+    [
+      0,
+      0,
+      0,
+      147,
+      0,
+      0,
+      0,
+      1,
+      2
+    ],
+    [
+      1,
+      0,
+      0,
+      0,
+      147,
+      0,
+      0,
+      0,
+      2
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      148,
+      0,
+      0,
+      2
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      146,
+      0,
+      3
+    ],
+    [
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      145,
+      3
+    ],
+    [
+      1,
+      7,
+      7,
+      8,
+      6,
+      1,
+      9,
+      10,
+      326
+    ]
+  ],
+  "etiquetas": [
+    "llamada",
+    "ok",
+    "peace",
+    "rock",
+    "fist",
+    "palm",
+    "stop",
+    "one",
+    "ninguno"
+  ],
+  "dataset": {
+    "total": 10500,
+    "por_etiqueta": {
+      "llamada": 1000,
+      "fist": 1000,
+      "ok": 1000,
+      "one": 1000,
+      "palm": 1000,
+      "peace": 1000,
+      "rock": 1000,
+      "stop": 1000,
+      "ninguno": 2500
+    }
+  },
+  "muestras": {
+    "entrenamiento": 14700,
+    "validacion": 1575,
+    "prueba": 1575
+  },
+  "nota": "Entrenado con landmarks públicos de HaGRID; el split es aleatorio por frame, así que las métricas son optimistas. La clase ninguno incluye negativos sintéticos."
+}

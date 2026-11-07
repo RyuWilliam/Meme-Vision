@@ -5,7 +5,21 @@ import type { NormalizedLandmark } from '@mediapipe/tasks-vision'
  * Las etiquetas coinciden exactamente con las del entrenamiento en Python
  * (`nucleo/src/meme_vision/configuracion.py`).
  */
-export type GestoId = 'like' | 'llamada' | 'silencio' | 'mewing' | 'ninguno'
+export type GestoId =
+  | 'like'
+  | 'llamada'
+  | 'silencio'
+  | 'mewing'
+  | 'saludo'
+  | 'ok'
+  | 'peace'
+  | 'rock'
+  | 'fist'
+  | 'palm'
+  | 'stop'
+  | 'one'
+  | 'dislike'
+  | 'ninguno'
 
 export interface GestoConfig {
   etiqueta: string
@@ -18,15 +32,41 @@ export const GESTOS: Record<GestoId, GestoConfig> = {
   llamada: { etiqueta: 'Llamada', carpeta: 'llamada', emoji: '📞' },
   silencio: { etiqueta: 'Silencio', carpeta: 'silencio', emoji: '🤫' },
   mewing: { etiqueta: 'Mewing', carpeta: 'mewing', emoji: '😼' },
+  saludo: { etiqueta: 'Saludo militar', carpeta: 'saludo', emoji: '🫡' },
+  ok: { etiqueta: 'OK', carpeta: 'ok', emoji: '👌' },
+  peace: { etiqueta: 'Paz', carpeta: 'peace', emoji: '✌️' },
+  rock: { etiqueta: 'Rock', carpeta: 'rock', emoji: '🤘' },
+  fist: { etiqueta: 'Puño', carpeta: 'fist', emoji: '✊' },
+  palm: { etiqueta: 'Palma', carpeta: 'palm', emoji: '🖐️' },
+  stop: { etiqueta: 'Stop', carpeta: 'stop', emoji: '✋' },
+  one: { etiqueta: 'Uno', carpeta: 'one', emoji: '☝️' },
+  dislike: { etiqueta: 'Dislike', carpeta: 'dislike', emoji: '👎' },
   ninguno: { etiqueta: 'Sin gesto', carpeta: '_sin_gesto', emoji: '👀' },
 }
 
-/** Orden que usa Python al entrenar; el JSON del modelo manda sobre este orden. */
+/** Orden que usa Python al entrenar el modelo de rostro (127 features). */
 export const ETIQUETAS_ENTRENAMIENTO: GestoId[] = [
   'like',
   'llamada',
   'silencio',
   'mewing',
+  'ninguno',
+]
+
+/**
+ * Clases del modelo de mano (69 features). `like` y `dislike` se resuelven con
+ * las reglas de MediaPipe; `silencio`, `mewing` y `saludo` necesitan el rostro
+ * y también los resuelve el motor de reglas.
+ */
+export const GESTOS_MANO: GestoId[] = [
+  'llamada',
+  'ok',
+  'peace',
+  'rock',
+  'fist',
+  'palm',
+  'stop',
+  'one',
   'ninguno',
 ]
 
@@ -89,6 +129,9 @@ export const CATEGORIAS_ROSTRO = [
 export const TAMANO_ENTRADA =
   21 * 3 /* mano */ + CATEGORIAS_ROSTRO.length /* blendshapes */ + 8 /* geometría */ + 4 /* flags */
 
+/** 63 coordenadas canónicas + mano presente + 5 flags de dedos. */
+export const TAMANO_ENTRADA_MANO = 21 * 3 + 6
+
 /** Lo que devuelve MediaPipe en un fotograma, listo para convertir a features. */
 export interface EntradaCuadro {
   mano: NormalizedLandmark[] | null
@@ -105,7 +148,7 @@ export interface GestoIntegrado {
 export interface DeteccionGesto {
   gesto: GestoId
   confianza: number
-  origen: 'mlp' | 'reglas'
+  origen: 'mlp' | 'mlp-mano' | 'reglas'
   mano: boolean
   rostro: boolean
   integrado: GestoIntegrado | null

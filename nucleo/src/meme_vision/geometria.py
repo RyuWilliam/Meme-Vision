@@ -71,6 +71,31 @@ def normalizar_mano(mano: np.ndarray, etiqueta: str | None) -> np.ndarray:
     return relativa.astype(np.float32).reshape(-1)
 
 
+def normalizar_mano_canonica(mano: np.ndarray, etiqueta: str | None) -> np.ndarray:
+    """21 puntos → 63 valores con la misma canonicalización que HaGRID.
+
+    Centra en la muñeca, gira para que el nudillo del índice (5) quede
+    vertical, escala por la distancia muñeca → nudillo medio (9) y refleja la
+    mano izquierda. Así el modelo de mano entrenado con el CSV público ve
+    exactamente la misma distribución que la cámara en vivo.
+    """
+    puntos = np.asarray(mano, dtype=np.float64)[:21, :3].copy()
+    puntos -= puntos[0]
+
+    dx, dy = puntos[5, 0], puntos[5, 1]
+    angulo_rad = math.atan2(dy, dx) + math.pi / 2
+    coseno, seno = math.cos(angulo_rad), math.sin(angulo_rad)
+    x = puntos[:, 0] * coseno + puntos[:, 1] * seno
+    y = -puntos[:, 0] * seno + puntos[:, 1] * coseno
+    salida = np.stack([x, y, puntos[:, 2]], axis=1)
+
+    escala = float(np.linalg.norm(salida[9])) or 1.0
+    salida /= escala
+    if etiqueta == "Left":
+        salida[:, 0] *= -1
+    return salida.astype(np.float32)
+
+
 def distancia_a_segmento(punto: Punto, a: Punto, b: Punto) -> float:
     vx = b[0] - a[0]
     vy = b[1] - a[1]
