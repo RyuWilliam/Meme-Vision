@@ -4,9 +4,13 @@ import type { GestoId } from './tipos.ts'
 /**
  * Las imágenes viven en `src/assets/memes/<gesto>/`. Vite las procesa, les pone
  * hash y las incluye en el precaché del Service Worker (globPatterns ya cubre
- * `png`), así que funcionan sin conexión sin tocar la configuración de la PWA.
+ * `png` y `jpg`), así que funcionan sin conexión sin tocar la configuración.
+ *
+ * Se aceptan PNG y JPEG porque no todas las fuentes entregan PNG; el formato
+ * real del archivo debe coincidir con su extensión para que el navegador lo
+ * decodifique.
  */
-const modulos = import.meta.glob('../assets/memes/**/*.png', {
+const modulos = import.meta.glob('../assets/memes/**/*.{png,jpg,jpeg,webp}', {
   eager: true,
   query: '?url',
   import: 'default',
