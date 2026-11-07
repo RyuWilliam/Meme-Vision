@@ -4,6 +4,12 @@ import { VitePWA } from 'vite-plugin-pwa'
 // Migración a Workbox (patrón de la Sesión 34): el Service Worker se genera
 // con vite-plugin-pwa en cada build, en vez del sw.js manual de las guías 17-21.
 export default defineConfig({
+  // Vite incrusta como base64 los assets menores a 4 KB y entonces no quedan
+  // como archivo en dist/. Eso hacía que un meme pequeño (stop_01.png, 3 KB)
+  // no entrara al precaché de Workbox. Con 0, toda imagen se emite como archivo.
+  build: {
+    assetsInlineLimit: 0,
+  },
   plugins: [
     VitePWA({
       // El manifest ya existe en public/manifest.json — el plugin solo
@@ -16,7 +22,7 @@ export default defineConfig({
       workbox: {
         // La lista de precaché se genera a partir de dist/ DESPUÉS del build,
         // con los nombres de archivo reales (con hash incluido).
-        globPatterns: ['**/*.{html,js,css,png,json,woff2}'],
+        globPatterns: ['**/*.{html,js,css,png,jpg,jpeg,webp,gif,json,woff2}'],
         clientsClaim: true,
         cleanupOutdatedCaches: true,
         runtimeCaching: [
