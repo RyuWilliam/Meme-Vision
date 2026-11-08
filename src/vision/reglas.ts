@@ -1,4 +1,4 @@
-import { distancia2, distanciaASegmento, extensiones } from './mano.ts'
+import { dedosCerrados, distancia2, distanciaASegmento, extensionesRegla } from './mano.ts'
 import type { EntradaCuadro, GestoId, GestoIntegrado } from './tipos.ts'
 import { ROSTRO } from './caracteristicas.ts'
 export interface ResultadoReglas {
@@ -20,7 +20,7 @@ export function clasificarReglas(
   const mano = entrada.mano
   if (!mano || mano.length < 21) return SIN_GESTO
 
-  const ext = extensiones(mano)
+  const ext = extensionesRegla(mano)
   const soloIndice = ext.indice && !ext.medio && !ext.anillo && !ext.menique
   // Mano plana o semiplana: índice y medio extendidos, los demás pueden variar.
   const manoAbierta = ext.indice && ext.medio
@@ -120,8 +120,15 @@ export function clasificarReglas(
     }
   }
 
-  // Llamada: pulgar y meñique extendidos, el resto cerrado.
-  if (ext.pulgar && ext.menique && !ext.indice && !ext.medio && !ext.anillo) {
+  // Llamada: pulgar y meñique extendidos, el resto CLARAMENTE cerrado.
+  //
+  // Antes bastaba con que índice, medio y anillo quedaran por debajo del
+  // umbral de extendido (150°). En una mano plana cualquiera de los tres baja
+  // de 150 por ruido, así que al intentar el saludo militar salía una llamada
+  // falsa. Ahora se exige la zona muerta de `dedosCerrados`, es decir que los
+  // tres estén de verdad doblados.
+  const cerrados = dedosCerrados(mano)
+  if (ext.pulgar && ext.menique && cerrados.indice && cerrados.medio && cerrados.anillo) {
     return { gesto: 'llamada', confianza: 0.9 }
   }
 

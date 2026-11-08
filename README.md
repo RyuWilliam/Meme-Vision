@@ -191,6 +191,42 @@ Las condiciones de posición se miden con los landmarks de la sien, del ojo y de
 centro de la cara, así que la mano tiene que estar **de verdad junto a la cabeza**, no al lado de la
 cara ni delante de la frente.
 
+### Zona muerta de los dedos (por qué no basta un umbral)
+
+Los dedos se clasifican por el ángulo de su articulación intermedia (PIP), en
+grados: 180 es recto y 90 es un ángulo recto. Un único umbral en 150 causaba dos
+problemas a la vez, medidos sobre las 11.500 muestras de HaGRID:
+
+| Umbral único 150 | Efecto |
+| --- | --- |
+| Un dedo a 145° contaba como **cerrado** | La mano plana no se detectaba → el saludo no salía |
+| Índice, medio y anillo bajo 150 bastaban para `llamada` | Al hacer el saludo saltaba una llamada falsa |
+
+Ahora hay una **zona muerta** con dos umbrales:
+
+```
+   > 140°  → claramente EXTENDIDO
+   < 110°  → claramente CERRADO
+110–140°  → no se afirma nada (zona muerta)
+```
+
+Cada regla usa el umbral que necesita: el saludo pide dedos extendidos (>140) y
+la llamada exige los tres dedos claramente doblados (<110).
+
+**No confundir con el modelo.** `extensiones()` sigue usando **150** porque
+alimenta los flags 64..68 del MLP de mano, y el entrenamiento en Python usa ese
+mismo valor (`nucleo/src/meme_vision/geometria.py`). Cambiarlo rompería la
+paridad entre entrenamiento e inferencia. Las reglas geométricas usan
+`extensionesRegla()`, con 140. El test `umbrales.test.ts` fija esa separación.
+
+Efecto medido al pasar de 150/150 a 140/110:
+
+| Escenario (ruido normal de MediaPipe) | Antes | Ahora |
+| --- | --- | --- |
+| Saludo detectado con mano plana en la sien | 58% | **86%** |
+| Llamada falsa al intentar el saludo | 0.4% | **0%** |
+| Falsos positivos de llamada sobre el dataset real | 12 | **2** |
+
 ## Cómo cambiar o agregar una imagen de meme
 
 Cada gesto tiene una carpeta en `src/assets/memes/<gesto>/`:
