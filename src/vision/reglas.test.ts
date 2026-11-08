@@ -128,40 +128,12 @@ describe('reglas geométricas', () => {
     expect(resultado.gesto).toBe('mewing')
   })
 
-  it('reconoce saludo militar con la mano plana en la sien', () => {
-    // Saludo real: los cuatro dedos extendidos y la mano en la sien.
-    const resultado = clasificarReglas(
-      entrada({
-        indice: true,
-        medio: true,
-        anillo: true,
-        menique: true,
-        indicePos: [0.33, 0.34],
-        medioPos: [0.38, 0.3],
-      }),
-    )
-    expect(resultado.gesto).toBe('saludo')
-    expect(resultado.confianza).toBeGreaterThan(0.7)
-  })
+  // El saludo militar tiene su propia suite en `saludo.test.ts`, porque su
+  // postura (mano plana HORIZONTAL, muñeca en la oreja) no se puede representar
+  // con el fixture vertical de este archivo.
 
-  it('reconoce saludo militar con tres dedos extendidos (mano seminplana)', () => {
-    // En cámara el meñique suele quedar tapado por el ángulo; basta con que
-    // acompañe el anillo para que la mano no sea una "V".
-    const resultado = clasificarReglas(
-      entrada({
-        indice: true,
-        medio: true,
-        anillo: true,
-        indicePos: [0.33, 0.34],
-        medioPos: [0.38, 0.3],
-      }),
-    )
-    expect(resultado.gesto).toBe('saludo')
-  })
-
-  it('NO confunde una "V" (paz) en la sien con un saludo militar', () => {
-    // Solo índice y medio: eso es el gesto de paz, no un saludo. Antes esta
-    // era justo la única forma de activar el saludo.
+  it('NO confunde una "V" (paz) con un saludo militar', () => {
+    // Solo índice y medio: eso es el gesto de paz, no un saludo.
     const resultado = clasificarReglas(
       entrada({
         indice: true,

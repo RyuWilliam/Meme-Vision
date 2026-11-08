@@ -128,15 +128,14 @@ describe('llamada: no se dispara por dedos a medio doblar', () => {
   })
 })
 
-describe('saludo: la mano plana se reconoce aunque los dedos no estén perfectos', () => {
-  it('detecta el saludo con dedos a 145° (casi rectos, caso real)', () => {
-    const mano = manoCon({ indice: 145, medio: 145, anillo: 145, menique: 145 })
-    // Mover índice y medio a la sien derecha, sin perder la apertura.
-    mano[8] = p(0.34, 0.35)
-    mano[6] = p(0.42, 0.42)
-    mano[12] = p(0.39, 0.33)
-    mano[10] = p(0.45, 0.41)
-    const r = clasificarReglas(entrada(mano))
-    expect(r.gesto).toBe('saludo')
+describe('zona muerta: la mano plana se reconoce aunque los dedos no estén perfectos', () => {
+  it('con dedos a 145° la mano se considera plana (indice, medio y un tercero)', () => {
+    // Este es el caso que rompía el saludo: con el umbral viejo de 150 un dedo
+    // a 145° contaba como cerrado y la mano dejaba de ser "plana".
+    const mano = manoCon({ indice: 145, medio: 145, anillo: 145, menique: 176 })
+    const e = extensionesRegla(mano)
+    expect(e.indice).toBe(true)
+    expect(e.medio).toBe(true)
+    expect(e.anillo).toBe(true)
   })
 })

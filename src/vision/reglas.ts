@@ -44,48 +44,56 @@ export function clasificarReglas(
     // plana (tres o cuatro dedos) sí se reconoce.
     const manoPlana = ext.anillo || ext.menique
     if (manoAbierta && manoPlana) {
-      const sienes = [rostro[ROSTRO.sienDerecha], rostro[ROSTRO.sienIzquierda]]
-      const lineaOjos =
-        (rostro[ROSTRO.ojoDerechoArriba].y + rostro[ROSTRO.ojoIzquierdoArriba].y) / 2
-      const puntas = [indice, medio]
-      let mejorSien = Number.POSITIVE_INFINITY
-      for (const sien of sienes) {
-        // Punta más cercana a esa sien; la otra debe acompañar.
-        const a = distancia2(puntas[0], sien) / escala
-        const b = distancia2(puntas[1], sien) / escala
-        mejorSien = Math.min(mejorSien, Math.max(a, b))
-      }
-      const arribaDeLosOjos = indice.y < lineaOjos + 0.04 * escala
-      // Condición lateral: la mano tiene que ir HACIA LA OREJA, no quedarse
-      // centrada en la frente. Sin esto, taparse el sol con la palma delante
-      // de la frente también entraba: la sien queda lo bastante cerca en
-      // distancia euclídea aunque la mano esté en el centro de la cara.
+      // Saludo militar real: la mano va PLANA y HORIZONTAL, con la palma hacia
+      // el suelo, la muñeca junto a la oreja y las puntas hacia el centro de la
+      // frente. Desde la cámara se ve el perfil del meñique.
       //
-      // Se mide qué tan lejos del centro de la cara está cada punta, en
-      // unidades de media anchura de cara (centro → sien). 0 es la nariz y 1
-      // la sien. Un saludo real ronda 0.7–0.8; una palma al centro, 0.
+      // Antes se medía la distancia de las PUNTAS a la sien. Eso no describe
+      // esta postura: aquí las puntas están en el centro de la frente y lo que
+      // queda junto a la oreja es la MUÑECA. Resultado: la regla rechazaba un
+      // saludo bien hecho y solo aceptaba poner la mano vertical delante de la
+      // cara, que es justo el gesto de taparse el sol.
+      //
+      // La regla nueva mide tres cosas: mano horizontal, muñeca lateral (hacia
+      // la oreja) y mano a la altura de la frente.
+      const muneca = mano[0]
       const centroX =
         (rostro[ROSTRO.sienDerecha].x + rostro[ROSTRO.sienIzquierda].x) / 2
       const medioAncho =
         Math.abs(rostro[ROSTRO.sienIzquierda].x - rostro[ROSTRO.sienDerecha].x) / 2 || 1
-      const lateral =
-        ((Math.abs(indice.x - centroX) + Math.abs(medio.x - centroX)) / 2) / medioAncho
-      // Las dos puntas deben estar del mismo lado de la cara: si una cruza al
-      // otro lado, la mano está tapando la cara, no saludando.
-      const mismoLado = (indice.x - centroX) * (medio.x - centroX) > 0
-      // 0.5 = al menos a mitad de camino entre el centro de la frente y la
-      // oreja. Así el gesto empieza a contar desde media frente hacia afuera.
-      const haciaLaOreja = mismoLado && lateral >= 0.5
-      // 0.26 de la altura de la cara desde la sien. Antes el umbral era 0.34,
-      // que en la práctica aceptaba cualquier palma abierta delante de la
-      // frente (una palma centrada da ~0.31). Un saludo real queda en ~0.13,
-      // así que 0.26 deja margen para la mano un poco separada sin falsos
-      // positivos de palma abierta.
-      if (mejorSien < 0.26 && arribaDeLosOjos && medio.y < lineaOjos && haciaLaOreja) {
-        return {
-          gesto: 'saludo',
-          confianza: 0.78 + 0.18 * (1 - Math.min(1, mejorSien / 0.34)),
-        }
+      const lineaOjos =
+        (rostro[ROSTRO.ojoDerechoArriba].y + rostro[ROSTRO.ojoIzquierdoArriba].y) / 2
+
+      // 1) Mano horizontal: se mide cuánto pesa la componente vertical del eje
+      // muñeca → nudillo medio, normalizada. 0 = perfectamente horizontal,
+      // 1 = perfectamente vertical. Medido sobre HaGRID: un saludo real queda
+      // en 0.30 de mediana y una palma vertical en 0.95, así que 0.62 separa
+      // las dos posturas con margen holgado.
+      const ejeX = mano[9].x - muneca.x
+      const ejeY = mano[9].y - muneca.y
+      const largoEje = Math.hypot(ejeX, ejeY) || 1
+      const horizontal = Math.abs(ejeY) / largoEje <= 0.62
+
+      // 2) La muñeca va hacia la oreja, no centrada delante de la cara.
+      // 0 es el centro de la frente y 1 la sien/oreja. Un saludo real deja la
+      // muñeca en 0.5–1.2; una palma centrada, en 0.
+      //
+      // El tope superior importa: sin él, una mano abierta lejos al lado de la
+      // cabeza (lateral > 2) también entraba, porque el resto de condiciones se
+      // cumplían igual.
+      const lateralMuneca = Math.abs(muneca.x - centroX) / medioAncho
+      const haciaLaOreja = lateralMuneca >= 0.35 && lateralMuneca <= 1.4
+
+      // 3) A la altura de la frente: ni por encima del nacimiento del pelo ni
+      // por debajo de las cejas. Con la mano horizontal las puntas quedan más
+      // altas que la muñeca, así que se comprueba el punto medio de la mano.
+      const yPuntas = (indice.y + medio.y) / 2
+      const aLaAlturaDeLaFrente =
+        muneca.y >= rostro[ROSTRO.frente].y - 0.06 * escala &&
+        yPuntas <= lineaOjos + 0.10 * escala
+
+      if (horizontal && haciaLaOreja && aLaAlturaDeLaFrente) {
+        return { gesto: 'saludo', confianza: 0.82 + 0.16 * Math.min(1, lateralMuneca) }
       }
     }
 

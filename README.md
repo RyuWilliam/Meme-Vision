@@ -169,27 +169,36 @@ MLP de mano → MLP de rostro → `ninguno`.
 ### Cómo hacer el saludo militar
 
 Es el gesto más exigente de los que dependen del rostro, porque combina la mano
-con una referencia facial. Para que se detecte:
+con una referencia facial. La postura correcta es un saludo militar de verdad:
 
-1. **Mano plana**, con al menos tres dedos extendidos (índice, medio y, si se
-   puede, anillo o meñique). Una "V" con solo dos dedos **no** cuenta: eso es
-   `peace`.
-2. **Hacia la oreja, no en el centro de la frente**. La mano debe quedar desde
-   media frente hacia afuera, con las puntas del índice y el medio apuntando al
-   lado de la cabeza. Si la pones centrada delante de la frente no se detecta:
-   eso parece que te estás tapando el sol.
-3. **Puntas del índice y el medio cerca de una sien**, a menos de un cuarto de la
-   altura de tu cara. Si alejas la mano, no se detecta.
-4. **Por encima de la línea de los ojos** y con la cara bien encuadrada. Si el
-   rostro no se detecta, la regla no se evalúa.
-5. **Las dos puntas del mismo lado**: si una cruza al otro lado de la cara, la
-   mano está tapando, no saludando.
+1. **Mano plana, con la palma hacia el suelo**, en horizontal. Desde la cámara
+   solo se ve el **perfil del meñique**; no es una mano de pie.
+2. **La muñeca va junto a la oreja** y las puntas de los dedos apuntan hacia el
+   centro de la frente. La mano queda desde media frente hacia atrás hasta la
+   oreja.
+3. **A la altura de la frente**: ni por encima del nacimiento del pelo ni por
+   debajo de las cejas.
+4. **Al menos tres dedos extendidos** (índice, medio y anillo o meñique). Una "V"
+   con solo dos dedos **no** cuenta: eso es `peace`.
+5. **Con la cara bien encuadrada**: si el rostro no se detecta, la regla no se
+   evalúa.
 6. **Mantén la posición** un instante: el estabilizador exige varios fotogramas
    seguidos antes de cambiar el meme.
 
-Las condiciones de posición se miden con los landmarks de la sien, del ojo y del
-centro de la cara, así que la mano tiene que estar **de verdad junto a la cabeza**, no al lado de la
-cara ni delante de la frente.
+| ✅ Correcto | ❌ No cuenta |
+| --- | --- |
+| Mano horizontal, palma al suelo, muñeca en la oreja | Palma de pie delante de la frente (taparse el sol) |
+| Puntas hacia el centro de la frente | "V" de dos dedos (eso es `peace`) |
+| A la altura de la frente | Mano en el pecho o encima de la cabeza |
+| Muñeca cerca de la oreja | Mano abierta lejos, al lado de la cabeza |
+
+**Por qué se exige la mano horizontal.** La versión anterior medía la distancia
+de *las puntas* a la sien, que no describe esta postura: en un saludo real las
+puntas están en el centro de la frente y lo que queda junto a la oreja es la
+**muñeca**. Aquella regla rechazaba un saludo bien hecho y en cambio aceptaba
+poner la mano de pie delante de la cara, que es justo el gesto de taparse el sol.
+Ahora se miden tres cosas: inclinación horizontal del eje de la mano, posición
+lateral de la muñeca y altura de la mano respecto a la frente.
 
 ### Zona muerta de los dedos (por qué no basta un umbral)
 
