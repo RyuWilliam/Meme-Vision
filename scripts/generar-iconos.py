@@ -1,4 +1,4 @@
-"""Genera los iconos de Meme Vision a partir de una sola composicion.
+﻿"""Genera los iconos de gestIA a partir de una sola composicion.
 
 Uso (opcional, no hace falta para `npm run build`):
     python scripts/generar-iconos.py
@@ -58,10 +58,10 @@ def main() -> None:
     base = composicion()
 
     for nombre, tamano in {
-        "meme-vision-icon-192.png": 192,
-        "meme-vision-icon-512.png": 512,
-        "meme-vision-icon-maskable.png": 512,
-        "meme-vision-icon-180.png": 180,
+        "gestia-icon-192.png": 192,
+        "gestia-icon-512.png": 512,
+        "gestia-icon-maskable.png": 512,
+        "gestia-icon-180.png": 180,
     }.items():
         base.resize((tamano, tamano), Image.Resampling.LANCZOS).save(SALIDA / nombre, optimize=True)
         print(f"escrito {SALIDA / nombre}")

@@ -1,7 +1,7 @@
 # Estado final — verificación de la corrección
 
 Fecha: 2026-11-06  
-App: Meme Vision (PWA local, Vite + TypeScript + Workbox)
+App: gestIA (PWA local, Vite + TypeScript + Workbox)
 
 ## Comandos
 

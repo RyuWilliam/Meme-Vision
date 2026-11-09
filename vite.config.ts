@@ -29,7 +29,7 @@ export default defineConfig({
           {
             // Íconos y screenshots del manifest: casi nunca cambian -> CacheFirst
             // con expiración real (maxEntries/maxAgeSeconds).
-            urlPattern: /\/assets\/meme-vision-(icon|screenshot)/,
+            urlPattern: /\/assets\/gestia-(icon|screenshot)/,
             handler: 'CacheFirst',
             options: {
               cacheName: 'imagenes',

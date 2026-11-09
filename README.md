@@ -1,4 +1,6 @@
-﻿# Meme Vision
+﻿# gestIA
+
+> Intelligence meets gesture.
 
 PWA local que reconoce gestos con la cámara y los convierte en memes. Todo el
 procesamiento ocurre en el navegador: el video, las fotos, los clips y las notas
@@ -163,6 +165,76 @@ Los dos detectores (mano y rostro) corren en cada fotograma porque MediaPipe los
 entrega juntos, pero **cada gesto se decide con la fuente que le corresponde**.
 `fusion.ts` fija la prioridad: reglas de rostro → like/dislike/llamada →
 MLP de mano → MLP de rostro → `ninguno`.
+
+### Cómo hacer el saludo militar
+
+Es el gesto más exigente de los que dependen del rostro, porque combina la mano
+con una referencia facial. La postura correcta es un saludo militar de verdad:
+
+1. **Mano plana, con la palma hacia el suelo**, en horizontal. Desde la cámara
+   solo se ve el **perfil del meñique**; no es una mano de pie.
+2. **La muñeca va junto a la oreja** y las puntas de los dedos apuntan hacia el
+   centro de la frente. La mano queda desde media frente hacia atrás hasta la
+   oreja.
+3. **A la altura de la frente**: ni por encima del nacimiento del pelo ni por
+   debajo de las cejas.
+4. **Al menos tres dedos extendidos** (índice, medio y anillo o meñique). Una "V"
+   con solo dos dedos **no** cuenta: eso es `peace`.
+5. **Con la cara bien encuadrada**: si el rostro no se detecta, la regla no se
+   evalúa.
+6. **Mantén la posición** un instante: el estabilizador exige varios fotogramas
+   seguidos antes de cambiar el meme.
+
+| ✅ Correcto | ❌ No cuenta |
+| --- | --- |
+| Mano horizontal, palma al suelo, muñeca en la oreja | Palma de pie delante de la frente (taparse el sol) |
+| Puntas hacia el centro de la frente | "V" de dos dedos (eso es `peace`) |
+| A la altura de la frente | Mano en el pecho o encima de la cabeza |
+| Muñeca cerca de la oreja | Mano abierta lejos, al lado de la cabeza |
+
+**Por qué se exige la mano horizontal.** La versión anterior medía la distancia
+de *las puntas* a la sien, que no describe esta postura: en un saludo real las
+puntas están en el centro de la frente y lo que queda junto a la oreja es la
+**muñeca**. Aquella regla rechazaba un saludo bien hecho y en cambio aceptaba
+poner la mano de pie delante de la cara, que es justo el gesto de taparse el sol.
+Ahora se miden tres cosas: inclinación horizontal del eje de la mano, posición
+lateral de la muñeca y altura de la mano respecto a la frente.
+
+### Zona muerta de los dedos (por qué no basta un umbral)
+
+Los dedos se clasifican por el ángulo de su articulación intermedia (PIP), en
+grados: 180 es recto y 90 es un ángulo recto. Un único umbral en 150 causaba dos
+problemas a la vez, medidos sobre las 11.500 muestras de HaGRID:
+
+| Umbral único 150 | Efecto |
+| --- | --- |
+| Un dedo a 145° contaba como **cerrado** | La mano plana no se detectaba → el saludo no salía |
+| Índice, medio y anillo bajo 150 bastaban para `llamada` | Al hacer el saludo saltaba una llamada falsa |
+
+Ahora hay una **zona muerta** con dos umbrales:
+
+```
+   > 140°  → claramente EXTENDIDO
+   < 110°  → claramente CERRADO
+110–140°  → no se afirma nada (zona muerta)
+```
+
+Cada regla usa el umbral que necesita: el saludo pide dedos extendidos (>140) y
+la llamada exige los tres dedos claramente doblados (<110).
+
+**No confundir con el modelo.** `extensiones()` sigue usando **150** porque
+alimenta los flags 64..68 del MLP de mano, y el entrenamiento en Python usa ese
+mismo valor (`nucleo/src/meme_vision/geometria.py`). Cambiarlo rompería la
+paridad entre entrenamiento e inferencia. Las reglas geométricas usan
+`extensionesRegla()`, con 140. El test `umbrales.test.ts` fija esa separación.
+
+Efecto medido al pasar de 150/150 a 140/110:
+
+| Escenario (ruido normal de MediaPipe) | Antes | Ahora |
+| --- | --- | --- |
+| Saludo detectado con mano plana en la sien | 58% | **86%** |
+| Llamada falsa al intentar el saludo | 0.4% | **0%** |
+| Falsos positivos de llamada sobre el dataset real | 12 | **2** |
 
 ## Cómo cambiar o agregar una imagen de meme
 

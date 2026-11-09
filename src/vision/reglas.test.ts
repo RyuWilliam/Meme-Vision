@@ -128,7 +128,12 @@ describe('reglas geométricas', () => {
     expect(resultado.gesto).toBe('mewing')
   })
 
-  it('reconoce saludo militar con mano plana en la sien', () => {
+  // El saludo militar tiene su propia suite en `saludo.test.ts`, porque su
+  // postura (mano plana HORIZONTAL, muñeca en la oreja) no se puede representar
+  // con el fixture vertical de este archivo.
+
+  it('NO confunde una "V" (paz) con un saludo militar', () => {
+    // Solo índice y medio: eso es el gesto de paz, no un saludo.
     const resultado = clasificarReglas(
       entrada({
         indice: true,
@@ -137,8 +142,7 @@ describe('reglas geométricas', () => {
         medioPos: [0.38, 0.3],
       }),
     )
-    expect(resultado.gesto).toBe('saludo')
-    expect(resultado.confianza).toBeGreaterThan(0.7)
+    expect(resultado.gesto).not.toBe('saludo')
   })
 
   it('no confunde el saludo con silencio ni mewing', () => {

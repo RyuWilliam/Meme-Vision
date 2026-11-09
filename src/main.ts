@@ -82,9 +82,9 @@ const app = qs<HTMLDivElement>('#app')
 app.innerHTML = `
 <div class="app-shell">
   <header class="site-header">
-    <a class="brand" href="#inicio" aria-label="Meme Vision, ir al inicio">
+    <a class="brand" href="#inicio" aria-label="gestIA, ir al inicio">
       <span class="brand-mark">${icon('spark')}</span>
-      <span class="brand-name">Meme<span>Vision</span></span>
+      <span class="brand-name">gest<span>IA</span></span>
     </a>
     <div class="header-actions">
       <span id="conexion-estado" class="conexion" role="status" aria-live="polite">En línea</span>
@@ -97,8 +97,9 @@ app.innerHTML = `
     <section class="hero" aria-labelledby="hero-title">
       <div class="hero-copy">
         <p class="kicker"><span aria-hidden="true"></span> Visión artificial en tu navegador</p>
+        <p class="slogan">Intelligence meets gesture.</p>
         <h1 id="hero-title">Haz un gesto.<br />Te devolvemos un meme.</h1>
-        <p class="lede">Meme Vision reconoce 14 gestos con la cámara y los convierte en memes. El video se queda en tu dispositivo: sin cuentas, sin servidores, sin subidas.</p>
+        <p class="lede">gestIA reconoce 14 gestos con la cámara y los convierte en memes. El video se queda en tu dispositivo: sin cuentas, sin servidores, sin subidas.</p>
         <div class="hero-actions">
           <button id="btn-abrir-camara" class="button button-primary" type="button">${icon('camera')} Abrir cámara</button>
           <button class="button button-secondary" type="button" data-abrir-gestos>${icon('hand')} Probar gestos</button>
@@ -233,7 +234,7 @@ app.innerHTML = `
   </main>
 
   <footer class="site-footer">
-    <p><strong>Meme Vision</strong> convierte gestos en memes sin sacar el video de tu dispositivo.</p>
+    <p><strong>gestIA</strong> convierte gestos en memes sin sacar el video de tu dispositivo.</p>
     <p class="footer-small">Hecho para la Electiva PWA · Funciona sin conexión después de preparar los modelos.</p>
     <p id="instalar-ayuda" class="footer-small" hidden>En iPhone o iPad: toca Compartir y luego “Añadir a pantalla de inicio”.</p>
   </footer>
@@ -491,7 +492,7 @@ async function pedirInstalacion(): Promise<void> {
   await evento.prompt()
   const eleccion = await evento.userChoice
   if (eleccion.outcome === 'accepted') {
-    mostrarToast('Instalación aceptada. Abre Meme Vision desde su icono.')
+    mostrarToast('Instalación aceptada. Abre gestIA desde su icono.')
   } else {
     mostrarToast('Instalación cancelada. Puedes intentarlo desde el menú del navegador.')
   }
@@ -1208,7 +1209,7 @@ window.addEventListener('beforeinstallprompt', evento => {
 window.addEventListener('appinstalled', () => {
   eventoInstalacion = null
   pintarInstalacion()
-  mostrarToast('Meme Vision quedó instalada. Ábrela desde su icono.')
+  mostrarToast('gestIA quedó instalada. Ábrela desde su icono.')
 })
 
 btnInstalarEl.addEventListener('click', () => void pedirInstalacion())

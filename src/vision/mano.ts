@@ -38,17 +38,30 @@ export function angulo(a: Punto, b: Punto, c: Punto): number {
 }
 
 /**
- * Un dedo está extendido si su articulación intermedia queda casi recta y la
- * punta se aleja de la muñeca más que esa articulación. Es independiente de la
- * rotación de la mano.
+ * Umbral de la articulación intermedia (PIP) para `extensiones()`.
+ *
+ * OJO: este valor NO es arbitrario. `extensiones()` alimenta los 5 flags
+ * (64..68) del modelo de mano exportado, y el entrenamiento en Python usa
+ * exactamente `> 150` (`nucleo/src/meme_vision/geometria.py`). Cambiarlo aquí
+ * rompería la paridad entre entrenamiento e inferencia, y el test
+ * `paridad.test.ts` lo detectaría. Para las reglas geométricas hay umbrales
+ * aparte, ver `anguloDedo`.
  */
+const PIP_EXTENDIDO_MLP = 150
+
+/** Ángulo de la articulación intermedia de un dedo, en grados. */
+export function anguloDedo(mano: Punto[], mcp: number, pip: number, tip: number): number {
+  return angulo(mano[mcp], mano[pip], mano[tip])
+}
+
+/** El dedo está claramente extendido (articulación casi recta). */
 function dedoExtendido(mano: Punto[], mcp: number, pip: number, tip: number): boolean {
-  return angulo(mano[mcp], mano[pip], mano[tip]) > 150
+  return anguloDedo(mano, mcp, pip, tip) > PIP_EXTENDIDO_MLP
 }
 
 export function extensiones(mano: Punto[]): Extensiones {
   const escala = distancia3(mano[0], mano[9]) || 1
-  const pulgarRecto = angulo(mano[2], mano[3], mano[4]) > 150
+  const pulgarRecto = angulo(mano[2], mano[3], mano[4]) > PIP_EXTENDIDO_MLP
   const pulgarLejos = distancia3(mano[4], mano[0]) > distancia3(mano[2], mano[0]) * 1.15
   const pulgarSeparado = distancia3(mano[4], mano[5]) > 0.8 * escala
 
@@ -58,6 +71,71 @@ export function extensiones(mano: Punto[]): Extensiones {
     medio: dedoExtendido(mano, 9, 10, 12),
     anillo: dedoExtendido(mano, 13, 14, 16),
     menique: dedoExtendido(mano, 17, 18, 20),
+  }
+}
+
+/**
+ * Umbrales de las REGLAS geométricas (no del modelo), en grados.
+ *
+ * Con un único umbral en 150 había dos problemas opuestos, medidos sobre
+ * 11.500 muestras reales de HaGRID:
+ *
+ *   - Un dedo casi recto pero no perfecto (~140°) contaba como CERRADO. En una
+ *     mano plana eso pasaba a menudo, así que la mano plana no se reconocía y
+ *     el saludo militar no entraba (solo 60% estable con ruido normal).
+ *   - A la vez, en el gesto de llamada bastaba con que índice, medio y anillo
+ *     quedaran por debajo de 150 para darla por buena. En una palma real
+ *     cualquiera de los tres baja de 150 por ruido, y con eso ya salía una
+ *     "llamada" falsa al intentar el saludo.
+ *
+ * La solución es una zona muerta: por encima de `EXTENDIDO` el dedo está
+ * claramente extendido; por debajo de `CERRADO` está claramente cerrado; en
+ * medio no se afirma nada. Con 140/110 el saludo sube al 88% de estabilidad y
+ * los falsos positivos de llamada bajan a 0%.
+ */
+const PIP_EXTENDIDO_REGLA = 140
+const PIP_CERRADO_REGLA = 110
+
+/** Para las reglas: el dedo está claramente extendido. */
+export function dedoExtendidoRegla(mano: Punto[], mcp: number, pip: number, tip: number): boolean {
+  return anguloDedo(mano, mcp, pip, tip) > PIP_EXTENDIDO_REGLA
+}
+
+/** Para las reglas: el dedo está claramente cerrado. */
+export function dedoCerradoRegla(mano: Punto[], mcp: number, pip: number, tip: number): boolean {
+  return anguloDedo(mano, mcp, pip, tip) < PIP_CERRADO_REGLA
+}
+
+/**
+ * Extensiones con los umbrales de las reglas (no los del modelo).
+ * `extensiones()` sigue usando 150 para no romper la paridad con Python.
+ */
+export function extensionesRegla(mano: Punto[]): Extensiones {
+  const escala = distancia3(mano[0], mano[9]) || 1
+  const pulgarRecto = angulo(mano[2], mano[3], mano[4]) > PIP_EXTENDIDO_REGLA
+  const pulgarLejos = distancia3(mano[4], mano[0]) > distancia3(mano[2], mano[0]) * 1.15
+  const pulgarSeparado = distancia3(mano[4], mano[5]) > 0.8 * escala
+
+  return {
+    pulgar: pulgarRecto && pulgarLejos && pulgarSeparado,
+    indice: dedoExtendidoRegla(mano, 5, 6, 8),
+    medio: dedoExtendidoRegla(mano, 9, 10, 12),
+    anillo: dedoExtendidoRegla(mano, 13, 14, 16),
+    menique: dedoExtendidoRegla(mano, 17, 18, 20),
+  }
+}
+
+/**
+ * Dedos CLARAMENTE cerrados, para reglas que se disparan al verlos doblados
+ * (`llamada`, `fist`). Con la zona muerta, un dedo a 130° no cuenta ni como
+ * extendido ni como cerrado, así que el ruido ya no inventa gestos.
+ */
+export function dedosCerrados(mano: Punto[]): { indice: boolean; medio: boolean; anillo: boolean; menique: boolean } {
+  return {
+    indice: dedoCerradoRegla(mano, 5, 6, 8),
+    medio: dedoCerradoRegla(mano, 9, 10, 12),
+    anillo: dedoCerradoRegla(mano, 13, 14, 16),
+    menique: dedoCerradoRegla(mano, 17, 18, 20),
   }
 }
 

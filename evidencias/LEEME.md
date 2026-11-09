@@ -1,4 +1,4 @@
-# Evidencias — MemeVision · Guías PWA
+# Evidencias — gestIA · Guías PWA
 
 > **Estado final (noviembre 2026):** la UI fue rediseñada y el Service Worker
 > pasó a Workbox. Las capturas de las sesiones 17–21 documentan el recorrido

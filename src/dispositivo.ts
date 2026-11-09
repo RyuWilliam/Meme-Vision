@@ -1,4 +1,4 @@
-// dispositivo.ts — APIs de dispositivo de MemeVision (Sesión 24):
+// dispositivo.ts — APIs de dispositivo de gestIA (Sesión 24):
 // cámara, micrófono y ubicación con el modelo de permisos, los errores y el
 // ciclo de vida que exige la guía. Solo funciona en HTTPS o localhost.
 
@@ -114,12 +114,47 @@ export function grabacionDisponible(): boolean {
   return typeof MediaRecorder !== 'undefined'
 }
 
-/** Cuenta las cámaras (videoinput) disponibles. Tras conceder el permiso son las reales. */
+/**
+ * Nombres que delatan una cámara virtual: salidas de OBS, XSplit, ManyCam y
+ * similares. No son cámaras físicas distintas, sino programas que reempaquetan
+ * la señal de otra fuente. Cambiar de cámara entre una física y su clon virtual
+ * no cambia lo que se ve, así que no cuentan para mostrar el botón.
+ */
+const CAMARA_VIRTUAL = /virtual camera|obs virtual|virtualcam|xsplit|manycam virtual/i
+
+/** ¿La etiqueta del dispositivo corresponde a una cámara virtual? */
+export function esCamaraVirtual(etiqueta: string): boolean {
+  return CAMARA_VIRTUAL.test(etiqueta)
+}
+
+/**
+ * Cuenta las cámaras FÍSICAS de una lista de dispositivos. Separado de
+ * `contarCamaras` para poder probarlo sin `navigator`.
+ *
+ * Ojo con las etiquetas: un navegador que todavía no concedió el permiso
+ * devuelve `label === ''` en todos los dispositivos. En ese caso no se puede
+ * distinguir una virtual de una física, así que se cuentan todas: es preferible
+ * mostrar el botón de más a ocultarlo cuando el usuario sí tiene dos cámaras.
+ * Por eso se llama después de abrir la cámara, cuando ya hay etiquetas.
+ */
+export function contarCamarasFisicas(
+  dispositivos: ReadonlyArray<{ kind: string; label: string }>,
+): number {
+  const camaras = dispositivos.filter(d => d.kind === 'videoinput')
+  const conEtiqueta = camaras.filter(d => d.label)
+  if (conEtiqueta.length === 0) return camaras.length
+  return conEtiqueta.filter(d => !esCamaraVirtual(d.label)).length
+}
+
+/**
+ * Cuenta las cámaras físicas disponibles, descartando las virtuales tipo
+ * «OBS Virtual Camera». Es lo que decide si tiene sentido ofrecer el botón
+ * «Cambiar cámara»: con una sola cámara real, ese botón solo confunde.
+ */
 export async function contarCamaras(): Promise<number> {
   if (!navigator.mediaDevices?.enumerateDevices) return 0
   try {
-    const dispositivos = await navigator.mediaDevices.enumerateDevices()
-    return dispositivos.filter(d => d.kind === 'videoinput').length
+    return contarCamarasFisicas(await navigator.mediaDevices.enumerateDevices())
   } catch {
     return 0
   }
