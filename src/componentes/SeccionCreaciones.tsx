@@ -73,7 +73,6 @@ export function SeccionCreaciones({
     <section className="creations-section" aria-labelledby="creaciones-title">
       <div className="section-head section-head-split">
         <div>
-          <p className="kicker">Tu archivo local</p>
           <h2 id="creaciones-title">Mis creaciones</h2>
           <p className="section-lede">
             Tus fotos, videos y notas viven en este dispositivo. Nada se envía a un servidor.

@@ -32,8 +32,7 @@ export function CatalogoGestos({
     <section className="gestures-section" aria-labelledby="gestos-title">
       <div className="section-head section-head-split">
         <div>
-          <p className="kicker">Catálogo real</p>
-          <h2 id="gestos-title">Catorce gestos, catorce memes.</h2>
+          <h2 id="gestos-title">Catorce gestos, catorce memes</h2>
           <p className="section-lede">
             Este es el catálogo que reconoce el modelo actual. Toca uno para abrir la vista de gestos.
           </p>

@@ -1,6 +1,16 @@
-// Héroe: el mensaje, los dos botones de entrada y la vista previa con un meme.
+// Heroe — la primera pantalla.
+//
+// Diseño: en vez de una tarjeta con un meme, el héroe muestra LO QUE VE el
+// modelo. El esqueleto de la mano va dibujado sobre una retícula de visor, y el
+// meme aparece como el resultado que sale de ahí. Es el producto hecho visible,
+// no una ilustración decorativa.
+//
+// Sin eyebrows en versalitas ni meta unida con puntos: se eliminaron por ser
+// recursos de plantilla. La jerarquía la llevan el tamaño y el espacio.
 import { Icono } from './Icono'
+import { EsqueletoMano } from './EsqueletoMano'
 import { urlMeme } from '../vision/memes'
+import { GESTOS } from '../vision/tipos'
 
 interface Props {
   alAbrirCamara: () => void
@@ -11,35 +21,46 @@ export function Heroe({ alAbrirCamara, alAbrirGestos }: Props) {
   return (
     <section className="hero" aria-labelledby="hero-title">
       <div className="hero-copy">
-        <p className="kicker"><span aria-hidden="true" /> Visión artificial en tu navegador</p>
         <p className="slogan">Intelligence meets gesture.</p>
-        <h1 id="hero-title">Haz un gesto.<br />Te devolvemos un meme.</h1>
+        <h1 id="hero-title">
+          Haz un gesto.<br />
+          Te devolvemos<br />
+          un meme.
+        </h1>
         <p className="lede">
-          gestIA reconoce 14 gestos con la cámara y los convierte en memes. El video se queda en tu
-          dispositivo: sin cuentas, sin servidores, sin subidas.
+          La cámara te lee la mano y el rostro aquí mismo, en el navegador. Cuando el gesto se
+          sostiene, aparece su meme. El video no sale de tu dispositivo.
         </p>
         <div className="hero-actions">
-          <button id="btn-abrir-camara" className="button button-primary" type="button" onClick={alAbrirCamara}>
+          <button className="button button-primary" type="button" onClick={alAbrirCamara}>
             <Icono nombre="camera" /> Abrir cámara
           </button>
           <button className="button button-secondary" type="button" onClick={alAbrirGestos}>
             <Icono nombre="hand" /> Probar gestos
           </button>
         </div>
-        <p className="hero-facts"><span>14 gestos</span><span>Modelo local</span><span>Sin cuenta</span></p>
+        <p className="hero-privacy">
+          <Icono nombre="shield" /> Sin cuentas y sin servidores. Instalable y funciona sin conexión.
+        </p>
       </div>
+
       <div className="hero-stage">
-        <div className="viewfinder">
-          <div className="viewfinder-top"><span className="rec"><i /> demo</span><span>on-device</span></div>
-          <img id="hero-meme" src={urlMeme('like', 0)} alt="Meme de ejemplo: pulgar arriba" />
-          <span className="corner corner-tl" aria-hidden="true" />
-          <span className="corner corner-tr" aria-hidden="true" />
-          <span className="corner corner-bl" aria-hidden="true" />
-          <span className="corner corner-br" aria-hidden="true" />
-          <div className="viewfinder-caption"><span>gesture / like</span><strong aria-hidden="true">👍</strong></div>
-        </div>
-        <span className="sticker sticker-like" aria-hidden="true">👍 like</span>
-        <p className="hero-privacy"><Icono nombre="shield" /> Tu cámara no sale del navegador.</p>
+        {/* El visor: retícula + esqueleto detectado + resultado */}
+        <figure className="visor-demo">
+          <div className="visor-rejilla" aria-hidden="true" />
+          <EsqueletoMano className="visor-esqueleto" />
+
+          <div className="visor-resultado">
+            <img src={urlMeme('like', 0)} alt={`Meme del gesto ${GESTOS.like.etiqueta}`} />
+            <span className="visor-etiqueta">{GESTOS.like.emoji} {GESTOS.like.etiqueta}</span>
+          </div>
+
+          <figcaption className="visor-pie">
+            <span className="visor-punto" aria-hidden="true" />
+            <span>21 puntos detectados</span>
+            <span className="visor-confianza">0,94 de confianza</span>
+          </figcaption>
+        </figure>
       </div>
     </section>
   )

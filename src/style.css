@@ -1,4 +1,4 @@
-@font-face {
+﻿@font-face {
   font-family: 'DM Sans';
   src: url('./assets/fonts/dm-sans-latin.woff2') format('woff2');
   font-style: normal;
@@ -14,35 +14,137 @@
   font-display: swap;
 }
 
+/* ---------------------------------------------------------------------------
+   SISTEMA DE COLOR â€” dos temas con los mismos nombres semÃ¡nticos.
+
+   La app es un instrumento de mediciÃ³n: se lee como una cÃ¡mara de visiÃ³n, no
+   como una landing de producto. De ahÃ­ el grafito frÃ­o y un naranja de seÃ±al
+   como Ãºnico acento; el azul queda reservado para datos (confianza, mÃ©tricas).
+
+   Todo el CSS usa estos tokens. Los pocos colores literales que quedan estÃ¡n
+   comentados y justificados (fondos de video, sombras del visor).
+--------------------------------------------------------------------------- */
 :root {
-  --paper: #f3efe5;
-  --surface: #fffdf8;
-  --surface-soft: #eae5d8;
-  --ink: #17201d;
-  --ink-soft: #3f4b45;
-  --muted: #5f6b65;
-  --line: #d5d0c4;
-  --line-strong: #b8b1a3;
-  --teal: #16221f;
-  --teal-soft: #23332e;
-  --lime: #d8ff5c;
-  --lime-deep: #b8e23c;
-  --coral: #ff6b4a;
-  --coral-ink: #b83a25;
-  --cream: #fff8e8;
-  --danger-bg: #ffe3dc;
-  --radius-lg: 30px;
-  --radius: 16px;
-  --radius-sm: 10px;
-  --shadow: 0 22px 60px rgba(23, 32, 29, 0.12);
+  color-scheme: light dark;
+
+  /* Paleta base â€” tema claro */
+  --paper: #eef0f3;
+  --surface: #ffffff;
+  --surface-soft: #e3e7ec;
+  --ink: #0d1117;
+  --ink-soft: #30363d;
+  --muted: #5c6672;
+  --line: #ccd2da;
+  --line-strong: #a8b1bd;
+
+  /* Panel oscuro fijo: el visor y la tarjeta de cifrado son Â«pantallasÂ» dentro
+     de la pÃ¡gina, y se quedan oscuros en los dos temas. */
+  --panel: #0d1117;
+  --panel-soft: #161b22;
+  --panel-ink: #e6edf3;
+  --panel-muted: #8b949e;
+  --panel-line: #26303b;
+
+  /* Acento: naranja de seÃ±al (no lima, no terracota) */
+  --accent: #e8590c;
+  --accent-ink: #ffffff;
+  --accent-soft: #ffe8d9;
+
+  /* Dato: azul reservado a confianza y mÃ©tricas */
+  --data: #1f6feb;
+  --data-soft: #ddebff;
+
+  /* Estados */
+  --ok: #1a7f37;
+  --ok-soft: #dafbe1;
+  --danger: #b42318;
+  --danger-soft: #ffebe9;
+
+  --radius-lg: 26px;
+  --radius: 14px;
+  --radius-sm: 9px;
+  --shadow: 0 18px 48px rgba(13, 17, 23, 0.14);
+  --shadow-panel: 0 24px 64px rgba(0, 0, 0, 0.38);
+
   --font-display: 'Space Grotesk', 'Trebuchet MS', sans-serif;
   --font-body: 'DM Sans', 'Segoe UI', sans-serif;
+
   color: var(--ink);
   background: var(--paper);
   font-family: var(--font-body);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Tema oscuro: se activa por preferencia del sistema o por el atributo del
+   <html>. Con cero JavaScript, el sistema decide. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #0d1117;
+    --surface: #161b22;
+    --surface-soft: #1c232c;
+    --ink: #e6edf3;
+    --ink-soft: #c3ccd7;
+    --muted: #9aa5b1;
+    --line: #26303b;
+    --line-strong: #3a4553;
+
+    --accent: #ff8a3d;
+    --accent-ink: #161b22;
+    --accent-soft: #3a2417;
+
+    --data: #6cb6ff;
+    --data-soft: #16283f;
+
+    --ok: #4cc38a;
+    --ok-soft: #132a1e;
+    --danger: #ff8f85;
+    --danger-soft: #3a1715;
+
+    --shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+  }
+}
+
+/* Forzar tema desde el atributo (lo usa el botÃ³n de la cabecera). */
+:root[data-tema='claro'] {
+  --paper: #eef0f3;
+  --surface: #ffffff;
+  --surface-soft: #e3e7ec;
+  --ink: #0d1117;
+  --ink-soft: #30363d;
+  --muted: #5c6672;
+  --line: #ccd2da;
+  --line-strong: #a8b1bd;
+  --accent: #e8590c;
+  --accent-ink: #ffffff;
+  --accent-soft: #ffe8d9;
+  --data: #1f6feb;
+  --data-soft: #ddebff;
+  --ok: #1a7f37;
+  --ok-soft: #dafbe1;
+  --danger: #b42318;
+  --danger-soft: #ffebe9;
+}
+
+:root[data-tema='oscuro'] {
+  --paper: #0d1117;
+  --surface: #161b22;
+  --surface-soft: #1c232c;
+  --ink: #e6edf3;
+  --ink-soft: #c3ccd7;
+  --muted: #9aa5b1;
+  --line: #26303b;
+  --line-strong: #3a4553;
+  --accent: #ff8a3d;
+  --accent-ink: #161b22;
+  --accent-soft: #3a2417;
+  --data: #6cb6ff;
+  --data-soft: #16283f;
+  --ok: #4cc38a;
+  --ok-soft: #132a1e;
+  --danger: #ff8f85;
+  --danger-soft: #3a1715;
 }
 
 * {
@@ -87,7 +189,7 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 3px solid var(--coral);
+  outline: 3px solid var(--accent);
   outline-offset: 3px;
 }
 
@@ -104,6 +206,20 @@ textarea:focus-visible {
 
 [hidden] {
   display: none !important;
+}
+
+/* Texto solo para lectores de pantalla: visible para la tecnología de asistencia
+   y fuera de la composición visual. */
+.solo-lector {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 .is-hidden {
@@ -144,7 +260,7 @@ textarea:focus-visible {
   height: 34px;
   border-radius: 50%;
   color: var(--ink);
-  background: var(--lime);
+  background: var(--accent);
 }
 
 .brand-mark .icon {
@@ -154,7 +270,7 @@ textarea:focus-visible {
 }
 
 .brand-name > span {
-  color: var(--coral-ink);
+  color: var(--danger);
 }
 
 .header-actions {
@@ -179,16 +295,16 @@ textarea:focus-visible {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #4b9e64;
+  background: var(--ok);
   box-shadow: 0 0 0 3px rgba(75, 158, 100, 0.15);
 }
 
 .conexion.is-offline {
-  color: var(--coral-ink);
+  color: var(--danger);
 }
 
 .conexion.is-offline::before {
-  background: var(--coral-ink);
+  background: var(--danger);
   box-shadow: 0 0 0 3px rgba(184, 58, 37, 0.14);
 }
 
@@ -221,12 +337,12 @@ textarea:focus-visible {
 
 .button-primary {
   border-color: var(--ink);
-  background: var(--lime);
+  background: var(--accent);
   box-shadow: 4px 4px 0 var(--ink);
 }
 
 .button-primary:hover {
-  background: var(--lime-deep);
+  background: var(--accent);
 }
 
 .button-secondary {
@@ -236,7 +352,7 @@ textarea:focus-visible {
 
 .button-secondary:hover {
   border-color: var(--ink);
-  background: var(--cream);
+  background: var(--panel-ink);
 }
 
 .button-ghost {
@@ -255,11 +371,11 @@ textarea:focus-visible {
 }
 
 .button-danger {
-  color: var(--coral-ink);
+  color: var(--danger);
 }
 
 .button-danger:hover {
-  background: var(--danger-bg);
+  background: var(--danger-soft);
 }
 
 .button[disabled] {
@@ -271,39 +387,21 @@ textarea:focus-visible {
 /* Hero -------------------------------------------------------------------- */
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.06fr) minmax(360px, 0.94fr);
+  grid-template-columns: minmax(0, 1.02fr) minmax(360px, 0.98fr);
   gap: clamp(30px, 5vw, 72px);
   align-items: center;
   padding: clamp(56px, 8vw, 96px) 0 70px;
 }
 
-.kicker {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0 0 15px;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.kicker > span {
-  width: 26px;
-  height: 2px;
-  background: var(--coral);
-}
-
-/* Lema de marca: "Intelligence meets gesture." Va sobre el titular, en el
-   mismo tono coral del acento para que no compita con el h1. */
+/* El lema ya no va en versalitas espaciadas (era un recurso de plantilla).
+   Ahora es una línea del sistema en el acento, con el peso de una firma. */
 .slogan {
-  margin: 0 0 10px;
-  color: var(--coral-ink);
+  margin: 0 0 18px;
+  color: var(--accent);
   font-family: var(--font-display);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: clamp(15px, 1.4vw, 17px);
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 
 .hero h1 {
@@ -351,158 +449,121 @@ textarea:focus-visible {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--coral);
+  background: var(--accent);
 }
 
 .hero-stage {
   position: relative;
-  padding: 18px 10px 30px 0;
+  padding: 8px 0 0;
 }
 
-.viewfinder {
+/* VISOR — la pieza memorable del héroe.
+   Muestra lo que el modelo ve: una retícula, el esqueleto de la mano detectado
+   y el meme como resultado. Todo lo demás de la página queda en silencio para
+   que esto sea lo que se recuerde. */
+.visor-demo {
   position: relative;
+  display: grid;
   overflow: hidden;
-  min-height: 430px;
-  padding: 18px;
+  min-height: 420px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--panel-line);
   border-radius: var(--radius-lg);
-  color: var(--cream);
-  background: var(--teal);
+  color: var(--panel-ink);
+  background: var(--panel);
   box-shadow: var(--shadow);
 }
 
-.viewfinder::after {
-  content: '';
+/* Retícula: dos capas finas, no un patrón decorativo. Da la lectura de «esto es
+   un instrumento que mide», y ayuda a situar los puntos en el encuadre. */
+.visor-rejilla {
   position: absolute;
   inset: 0;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent 3px,
-    rgba(255, 248, 232, 0.035) 4px
-  );
+  background-image:
+    linear-gradient(to right, var(--panel-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--panel-line) 1px, transparent 1px);
+  background-size: 48px 48px;
+  opacity: 0.45;
+  mask-image: radial-gradient(ellipse at center, #000 35%, transparent 88%);
 }
 
-.viewfinder-top {
+.visor-esqueleto {
   position: absolute;
-  top: 18px;
-  left: 18px;
+  inset: 6% 8% 14% 8%;
+  width: 84%;
+  height: 80%;
+  color: var(--accent);
+}
+
+/* El resultado: el meme entra desplazado a la derecha, sobre el esqueleto,
+   para que se lea como «esto sale de esto otro». */
+.visor-resultado {
+  position: relative;
+  z-index: 2;
+  align-self: end;
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 18px 54px 0;
+  padding: 8px;
+  border: 1px solid var(--panel-line);
+  border-radius: var(--radius);
+  background: var(--panel-soft);
+  box-shadow: var(--shadow-panel);
+}
+
+.visor-resultado img {
+  display: block;
+  width: 96px;
+  height: 96px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+}
+
+.visor-etiqueta {
+  padding-right: 6px;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.visor-pie {
+  position: absolute;
   right: 18px;
+  bottom: 18px;
+  left: 18px;
   z-index: 2;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  color: rgba(255, 248, 232, 0.72);
-  font-family: var(--font-display);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  gap: 9px;
+  color: var(--panel-muted);
+  font-size: 12px;
 }
 
-.rec {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.rec i {
+.visor-punto {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--coral);
+  background: var(--ok);
 }
 
-.viewfinder img {
-  display: block;
-  width: 100%;
-  height: 390px;
-  object-fit: contain;
-  border-radius: 18px;
-  background: #0d1715;
-}
-
-.corner {
-  position: absolute;
-  z-index: 2;
-  width: 22px;
-  height: 22px;
-  border-color: var(--lime);
-  border-style: solid;
-}
-
-.corner-tl {
-  top: 46px;
-  left: 30px;
-  border-width: 2px 0 0 2px;
-}
-
-.corner-tr {
-  top: 46px;
-  right: 30px;
-  border-width: 2px 2px 0 0;
-}
-
-.corner-bl {
-  bottom: 70px;
-  left: 30px;
-  border-width: 0 0 2px 2px;
-}
-
-.corner-br {
-  right: 30px;
-  bottom: 70px;
-  border-width: 0 2px 2px 0;
-}
-
-.viewfinder-caption {
-  position: absolute;
-  right: 28px;
-  bottom: 26px;
-  left: 28px;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-family: var(--font-display);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.viewfinder-caption strong {
-  font-size: 28px;
-  line-height: 1;
-}
-
-.sticker {
-  position: absolute;
-  z-index: 3;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border: 2px solid var(--ink);
-  border-radius: 999px;
-  font-family: var(--font-display);
-  font-size: 12px;
-  font-weight: 700;
-  box-shadow: 4px 4px 0 var(--ink);
-}
-
-.sticker-like {
-  top: 2px;
-  right: -4px;
-  background: var(--lime);
-  transform: rotate(7deg);
+/* La confianza se separa a la derecha y se marca como dato: es un número medido,
+   no una afirmación de marketing. */
+.visor-confianza {
+  margin-left: auto;
+  color: var(--data);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .hero-privacy {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 23px 0 0;
+  margin: 20px 0 0;
   color: var(--muted);
   font-size: 12px;
 }
@@ -510,7 +571,7 @@ textarea:focus-visible {
 .hero-privacy .icon {
   width: 16px;
   height: 16px;
-  color: var(--coral-ink);
+  color: var(--ok);
 }
 
 /* Secciones --------------------------------------------------------------- */
@@ -563,22 +624,12 @@ textarea:focus-visible {
 
 .steps li {
   position: relative;
-  padding: 24px 30px 0 0;
+  padding: 26px 30px 0 0;
 }
 
 .steps li + li {
   padding-left: 30px;
   border-left: 1px solid var(--line);
-}
-
-.step-num {
-  display: block;
-  margin-bottom: 20px;
-  color: var(--coral-ink);
-  font-family: var(--font-display);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
 }
 
 .steps h3 {
@@ -650,7 +701,7 @@ textarea:focus-visible {
   height: 31px;
   border: 1px solid rgba(23, 32, 29, 0.18);
   border-radius: 50%;
-  background: var(--cream);
+  background: var(--panel-ink);
   font-size: 16px;
 }
 
@@ -662,8 +713,8 @@ textarea:focus-visible {
   margin-top: 26px;
   padding: 22px 24px;
   border-radius: var(--radius);
-  color: var(--cream);
-  background: var(--teal);
+  color: var(--panel-ink);
+  background: var(--panel);
 }
 
 .offline-icon {
@@ -673,7 +724,7 @@ textarea:focus-visible {
   height: 46px;
   border-radius: 50%;
   color: var(--ink);
-  background: var(--lime);
+  background: var(--accent);
 }
 
 .offline-copy h3 {
@@ -685,18 +736,18 @@ textarea:focus-visible {
 
 .offline-copy p {
   margin: 0;
-  color: #c6d1c7;
+  color: var(--panel-muted);
   font-size: 13px;
   line-height: 1.5;
 }
 
 .offline-copy .status-line {
   margin-top: 7px;
-  color: var(--lime);
+  color: var(--accent);
 }
 
 .offline-panel .button {
-  color: var(--cream);
+  color: var(--panel-ink);
   border-color: rgba(255, 248, 232, 0.4);
 }
 
@@ -720,11 +771,11 @@ textarea:focus-visible {
 }
 
 .progress::-webkit-progress-value {
-  background: var(--lime);
+  background: var(--accent);
 }
 
 .progress::-moz-progress-bar {
-  background: var(--lime);
+  background: var(--accent);
 }
 
 /* Creaciones -------------------------------------------------------------- */
@@ -796,7 +847,7 @@ textarea:focus-visible {
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   color: var(--ink);
-  background: #fff;
+  background: var(--surface);
   font-size: 14px;
 }
 
@@ -807,7 +858,7 @@ textarea:focus-visible {
 
 .field input::placeholder,
 .field textarea::placeholder {
-  color: #68736d;
+  color: var(--muted);
 }
 
 .form-actions {
@@ -846,9 +897,9 @@ textarea:focus-visible {
 }
 
 .security-card {
-  color: var(--cream);
-  background: var(--teal);
-  border-color: var(--teal);
+  color: var(--panel-ink);
+  background: var(--panel);
+  border-color: var(--panel);
 }
 
 .security-head {
@@ -867,7 +918,7 @@ textarea:focus-visible {
 
 .security-card > p {
   margin: 12px 0 17px;
-  color: #c6d1c7;
+  color: var(--panel-muted);
   font-size: 13px;
   line-height: 1.55;
 }
@@ -877,25 +928,26 @@ textarea:focus-visible {
 }
 
 .security-card .field label {
-  color: #dbe4d7;
+  color: var(--panel-ink);
 }
 
 .security-card .field input {
-  border-color: #52645c;
-  background: #fdfbf4;
+  border-color: var(--panel-line);
+  color: var(--panel-ink);
+  background: var(--panel);
 }
 
 .security-card .button {
   width: 100%;
   margin-top: 4px;
-  color: var(--ink);
-  border-color: var(--lime);
-  background: var(--lime);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+  background: var(--accent);
 }
 
 .security-card .status-line {
   margin-top: 12px;
-  color: #c6d1c7;
+  color: var(--panel-muted);
 }
 
 .chip {
@@ -905,15 +957,19 @@ textarea:focus-visible {
   max-width: 100%;
   padding: 5px 9px;
   border-radius: 999px;
-  color: #3d4a21;
-  background: #e7efcf;
+  color: var(--panel-ink);
+  background: var(--panel-soft);
   font-size: 10px;
   font-weight: 700;
 }
 
+/* El chip de estado del cifrado vive sobre la tarjeta oscura: tiene que usar
+   los tokens del panel, no los de la página (si no, en tema oscuro queda
+   blanco sobre blanco). */
 .security-card .chip {
-  color: var(--ink);
-  background: var(--cream);
+  color: var(--panel-ink);
+  background: var(--panel-soft);
+  border: 1px solid var(--panel-line);
 }
 
 .security-note {
@@ -921,7 +977,7 @@ textarea:focus-visible {
   align-items: flex-start;
   gap: 7px;
   margin: 12px 0 0 !important;
-  color: #aebcaf !important;
+  color: var(--panel-muted) !important;
   font-size: 11px !important;
 }
 
@@ -1049,9 +1105,9 @@ textarea:focus-visible {
   z-index: 20;
   margin: 0;
   padding: 12px 20px;
-  color: #6f1e13;
-  background: var(--danger-bg);
-  border-bottom: 1px solid #e1a698;
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-bottom: 1px solid var(--danger);
   font-size: 13px;
   font-weight: 600;
 }
@@ -1063,16 +1119,16 @@ textarea:focus-visible {
   z-index: 100;
   max-width: min(420px, calc(100vw - 44px));
   padding: 12px 16px;
-  border: 1px solid var(--lime);
+  border: 1px solid var(--accent);
   border-radius: 12px;
-  color: var(--cream);
-  background: var(--teal);
+  color: var(--panel-ink);
+  background: var(--panel);
   box-shadow: var(--shadow);
   font-size: 13px;
   line-height: 1.45;
 }
 
-/* Diálogos ---------------------------------------------------------------- */
+/* DiÃ¡logos ---------------------------------------------------------------- */
 .dialog {
   width: min(94vw, 620px);
   max-height: 92vh;
@@ -1177,7 +1233,7 @@ textarea:focus-visible {
   position: relative;
   overflow: hidden;
   border-radius: 15px;
-  background: var(--teal);
+  background: var(--panel);
 }
 
 #video-camara {
@@ -1186,7 +1242,7 @@ textarea:focus-visible {
   aspect-ratio: 4 / 3;
   max-height: 60vh;
   object-fit: cover;
-  background: var(--teal);
+  background: var(--panel);
 }
 
 #video-camara.is-mirror {
@@ -1209,7 +1265,7 @@ textarea:focus-visible {
   display: block;
   width: 0;
   height: 100%;
-  background: var(--lime-deep);
+  background: var(--accent);
 }
 
 .camera-controls {
@@ -1229,7 +1285,7 @@ textarea:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--coral-ink);
+  color: var(--danger);
   font-size: 12px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -1239,7 +1295,7 @@ textarea:focus-visible {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--coral);
+  background: var(--accent);
   animation: rec-pulse 1s ease-in-out infinite;
 }
 
@@ -1290,7 +1346,7 @@ textarea:focus-visible {
   width: 180px;
   border-radius: 10px;
   border: 1px solid var(--line);
-  background: var(--teal);
+  background: var(--panel);
 }
 
 #video-repro,
@@ -1300,7 +1356,7 @@ textarea:focus-visible {
   max-height: 70vh;
   object-fit: contain;
   border-radius: 12px;
-  background: var(--teal);
+  background: var(--panel);
 }
 
 /* Gestos en vivo ---------------------------------------------------------- */
@@ -1316,7 +1372,7 @@ textarea:focus-visible {
   overflow: hidden;
   aspect-ratio: 16 / 9;
   border-radius: 15px;
-  background: var(--teal);
+  background: var(--panel);
 }
 
 .gestures-video-wrap video {
@@ -1349,13 +1405,13 @@ textarea:focus-visible {
   justify-content: center;
   gap: 5px;
   padding: 24px;
-  color: #c6d1c7;
-  background: var(--teal);
+  color: var(--panel-muted);
+  background: var(--panel);
   text-align: center;
 }
 
 .gestures-placeholder strong {
-  color: var(--cream);
+  color: var(--panel-ink);
   font-family: var(--font-display);
   font-size: 18px;
 }
@@ -1372,7 +1428,7 @@ textarea:focus-visible {
   margin-bottom: 5px;
   border-radius: 50%;
   color: var(--ink);
-  background: var(--lime);
+  background: var(--accent);
 }
 
 .gestures-chip {
@@ -1382,7 +1438,7 @@ textarea:focus-visible {
   z-index: 2;
   padding: 6px 10px;
   border-radius: 999px;
-  color: var(--lime);
+  color: var(--accent);
   background: rgba(11, 23, 21, 0.78);
   font-size: 10px;
   font-weight: 700;
@@ -1401,14 +1457,14 @@ textarea:focus-visible {
   aspect-ratio: 1;
   border: 1px solid var(--line);
   border-radius: 15px;
-  background: var(--teal);
+  background: var(--panel);
 }
 
 /*
  * La imagen se posiciona en absoluto para que su altura quede ligada al marco.
  * Con `height: 100%` dentro de un contenedor con `aspect-ratio`, la imagen
- * resolvía su altura intrínseca (345 px) y `overflow: hidden` la recortaba en
- * pantallas donde el marco es más bajo que ancho.
+ * resolvÃ­a su altura intrÃ­nseca (345 px) y `overflow: hidden` la recortaba en
+ * pantallas donde el marco es mÃ¡s bajo que ancho.
  */
 .gesture-meme-frame img {
   position: absolute;
@@ -1451,7 +1507,7 @@ textarea:focus-visible {
   width: 0;
   height: 100%;
   border-radius: inherit;
-  background: var(--lime-deep);
+  background: var(--accent);
   transition: width 120ms linear;
 }
 

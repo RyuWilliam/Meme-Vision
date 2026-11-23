@@ -3,6 +3,7 @@
 // que mostraban u ocultaban botones con .hidden.
 import { Icono } from './Icono'
 import { useConexion } from '../hooks/useConexion'
+import { useTema } from '../hooks/useTema'
 import type { EstadoInstalacion } from '../hooks/useInstalacion'
 
 interface Props {
@@ -14,6 +15,8 @@ interface Props {
 
 export function Cabecera({ instalacion, hayActualizacion, alInstalar, alActualizar }: Props) {
   const { enLinea, texto } = useConexion()
+  const { tema, siguiente, etiqueta } = useTema()
+  const iconoTema = tema === 'claro' ? 'sol' : tema === 'oscuro' ? 'luna' : 'sistema'
 
   return (
     <header className="site-header">
@@ -31,6 +34,16 @@ export function Cabecera({ instalacion, hayActualizacion, alInstalar, alActualiz
         >
           {texto}
         </span>
+        <button
+          className="button button-ghost button-small"
+          type="button"
+          onClick={siguiente}
+          aria-label={etiqueta}
+          title={etiqueta}
+        >
+          <Icono nombre={iconoTema} />
+          <span className="solo-lector">{etiqueta}</span>
+        </button>
         {instalacion.sePuedeInstalar && (
           <button className="button button-ghost button-small" type="button" onClick={alInstalar}>
             <Icono nombre="install" /> Instalar app

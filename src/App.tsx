@@ -178,26 +178,25 @@ export function App() {
         <main id="inicio">
           <Heroe alAbrirCamara={() => setCamaraAbierta(true)} alAbrirGestos={() => setGestosAbiertos(true)} />
 
+          {/* Los tres pasos NO son una secuencia de proceso (no hay orden
+              obligatorio entre ellos), así que no llevan numeración 01/02/03:
+              los números eran decoración. La jerarquía la da el título. */}
           <section className="steps-section" aria-labelledby="pasos-title">
             <div className="section-head">
-              <p className="kicker">Cómo funciona</p>
-              <h2 id="pasos-title">Tres pasos. Cero fricción.</h2>
+              <h2 id="pasos-title">Tres cosas que hace la app, y ninguna más</h2>
             </div>
             <ol className="steps">
               <li>
-                <span className="step-num">01</span>
                 <h3>Activa la cámara</h3>
-                <p>Permite el acceso solo cuando pulses el botón. Puedes cerrar la vista en cualquier momento y la cámara se apaga.</p>
+                <p>El permiso se pide cuando pulsas el botón, no al cargar. Cierras la vista y la cámara se apaga.</p>
               </li>
               <li>
-                <span className="step-num">02</span>
                 <h3>Haz tu gesto</h3>
-                <p>El modelo reconoce la mano y el rostro en el navegador. Cuando mantienes el gesto, aparece su meme.</p>
+                <p>El modelo lee la mano y el rostro en el navegador. Cuando el gesto se sostiene unos fotogramas, aparece su meme.</p>
               </li>
               <li>
-                <span className="step-num">03</span>
                 <h3>Guarda tu creación</h3>
-                <p>Las fotos, videos y notas se guardan en IndexedDB. La nota privada se cifra con tu contraseña.</p>
+                <p>Fotos, videos y notas quedan en IndexedDB. La nota privada se cifra con una clave derivada de tu contraseña.</p>
               </li>
             </ol>
           </section>
