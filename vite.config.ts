@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 // Migración a Workbox (patrón de la Sesión 34): el Service Worker se genera
@@ -9,8 +10,21 @@ export default defineConfig({
   // no entrara al precaché de Workbox. Con 0, toda imagen se emite como archivo.
   build: {
     assetsInlineLimit: 0,
+    // MediaPipe (WASM + envoltorio de Tasks Vision) pesa más que toda la app
+    // junta y solo se necesita al abrir «Gestos en vivo». En su propio archivo
+    // se descarga aparte y se cachea por separado; el arranque de la página no
+    // espera por él.
+    rolldownOptions: {
+      output: {
+        advancedChunks: {
+          groups: [{ name: 'mediapipe', test: /@mediapipe/ }],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 700,
   },
   plugins: [
+    react(),
     VitePWA({
       // El manifest ya existe en public/manifest.json — el plugin solo
       // genera el Service Worker, no el manifest.
