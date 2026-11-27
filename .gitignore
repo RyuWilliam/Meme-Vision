@@ -16,6 +16,10 @@ dist-ssr
 auditoria/
 commit.bat
 
+# Builds de las dos versiones para la demo de actualización (~4 MB).
+# Se generan con: npm run build desde main y desde feat/react.
+demo-version/
+
 # Configuración local de Command Code
 .commandcode/
 
